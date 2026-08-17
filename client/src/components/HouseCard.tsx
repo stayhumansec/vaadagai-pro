@@ -27,14 +27,14 @@ export function HouseCard({ house, status, amount, munBakki, onClick }: HouseCar
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`relative min-w-[110px] rounded-xl border p-3 text-left ${style.border} ${style.bg} ${
-        onClick ? 'cursor-pointer hover:shadow-md' : 'cursor-default'
+      className={`relative min-w-[110px] rounded-xl border p-3 text-left transition-all duration-150 ${style.border} ${style.bg} ${
+        onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md' : 'cursor-default'
       }`}
     >
       {!!munBakki && munBakki > 0 && (
         <span
           title="முன் பாக்கி உள்ளது"
-          className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-brand-orange"
+          className="absolute right-2 top-2 h-2.5 w-2.5 animate-pulse rounded-full bg-brand-orange"
         />
       )}
       <p className="text-xs text-gray">வீடு {house.id}</p>
