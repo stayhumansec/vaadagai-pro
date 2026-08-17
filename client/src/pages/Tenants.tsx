@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Modal } from '../components/Modal';
 import { addNewTenant, createHouse, getHouses, getRecords, getRentHistory, getTenantHistory, updateHouse, uploadHouseProof } from '../api';
 import type { House, HouseStatus, RentHistoryEntry, RentRecord, TenantHistoryEntry } from '../types';
@@ -496,7 +497,12 @@ export function Tenants() {
 
             {tenantHistory.length > 0 && (
               <div>
-                <p className="mb-1 text-sm font-medium text-navy">{t('tenants.previousTenants')}</p>
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-sm font-medium text-navy">{t('tenants.previousTenants')}</p>
+                  <Link to={`/rent-history?house=${editing.id}`} className="text-xs text-brand-blue hover:underline">
+                    {t('rentHistory.viewTenantHistory')}
+                  </Link>
+                </div>
                 <div className="overflow-x-auto rounded-lg border border-gray-3">
                   <table className="w-full text-left text-xs">
                     <thead>

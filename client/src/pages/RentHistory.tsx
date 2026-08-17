@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Modal } from '../components/Modal';
-import { addRentHistory, getHouses, getRentHistory } from '../api';
-import type { House, RentHistoryEntry } from '../types';
+import { addRentHistory, getHouses, getRentHistory, getTenantHistory } from '../api';
+import type { House, RentHistoryEntry, TenantHistoryEntry } from '../types';
 import { fmt, mlabel, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
@@ -19,9 +20,14 @@ interface RevisionForm {
 export function RentHistory() {
   const { showToast } = useToast();
   const { t, language } = useLanguage();
+  const [searchParams] = useSearchParams();
   const [houses, setHouses] = useState<House[]>([]);
-  const [houseFilter, setHouseFilter] = useState<number | 'all'>('all');
+  const [houseFilter, setHouseFilter] = useState<number | 'all'>(() => {
+    const fromQuery = Number(searchParams.get('house'));
+    return fromQuery > 0 ? fromQuery : 'all';
+  });
   const [entries, setEntries] = useState<RentHistoryEntry[]>([]);
+  const [tenantHistory, setTenantHistory] = useState<TenantHistoryEntry[]>([]);
   const [form, setForm] = useState<RevisionForm | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -32,6 +38,11 @@ export function RentHistory() {
     ]);
     setHouses(houseList);
     setEntries(history);
+    if (houseFilter !== 'all') {
+      setTenantHistory(await getTenantHistory(houseFilter));
+    } else {
+      setTenantHistory([]);
+    }
   };
 
   useEffect(() => { load(); }, [houseFilter]);
@@ -140,6 +151,37 @@ export function RentHistory() {
           </tbody>
         </table>
       </div>
+
+      {houseFilter === 'all' ? (
+        <p className="text-xs text-gray">{t('rentHistory.selectHouseHint')}</p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-gray-3 bg-white">
+          <p className="border-b border-gray-3 px-3 py-2 text-sm font-medium text-navy">{t('tenants.previousTenants')}</p>
+          <table className="w-full min-w-[600px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-3 text-gray">
+                <th className="px-3 py-2">{t('common.name')}</th>
+                <th className="px-3 py-2">{t('common.phone')}</th>
+                <th className="px-3 py-2">{t('tenants.moveInDate')}</th>
+                <th className="px-3 py-2">{t('tenants.moveOutDate')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tenantHistory.map((entry) => (
+                <tr key={entry.id} className="border-b border-gray-3 last:border-0">
+                  <td className="px-3 py-2">{entry.name}</td>
+                  <td className="px-3 py-2">{entry.phone ?? '—'}</td>
+                  <td className="px-3 py-2">{entry.move_in_date ?? '—'}</td>
+                  <td className="px-3 py-2">{entry.move_out_date ?? '—'}</td>
+                </tr>
+              ))}
+              {tenantHistory.length === 0 && (
+                <tr><td colSpan={4} className="px-3 py-6 text-center text-gray">{t('common.noRecords')}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {form && (
         <Modal
