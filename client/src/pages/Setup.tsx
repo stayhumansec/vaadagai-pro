@@ -16,6 +16,7 @@ export function Setup() {
   const [ownerName, setOwnerName] = useState('');
   const [defaultEbRate, setDefaultEbRate] = useState(6.0);
   const [defaultLanguage, setDefaultLanguage] = useState<Language>('ta');
+  const [ownerEmail, setOwnerEmail] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
@@ -23,13 +24,14 @@ export function Setup() {
       setOwnerName(s.owner_name);
       setDefaultEbRate(s.default_eb_rate);
       if (s.default_language === 'en' || s.default_language === 'ta') setDefaultLanguage(s.default_language);
+      setOwnerEmail(s.owner_email);
     });
   }, []);
 
   const saveSettings = async () => {
     setSavingSettings(true);
     try {
-      await updateSettings({ owner_name: ownerName, default_eb_rate: defaultEbRate, default_language: defaultLanguage });
+      await updateSettings({ owner_name: ownerName, default_eb_rate: defaultEbRate, default_language: defaultLanguage, owner_email: ownerEmail });
       if (!localStorage.getItem('language')) setLanguage(defaultLanguage);
       showToast(t('settings.saved'), 'ok');
     } catch {
@@ -156,6 +158,28 @@ export function Setup() {
               onChange={(e) => setDefaultEbRate(+e.target.value)}
               className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
             />
+          </label>
+          <label className="block text-sm">
+            {t('settings.ownerEmail')}
+            <div className="mt-1 flex gap-2">
+              <input
+                type="email"
+                value={ownerEmail}
+                onChange={(e) => setOwnerEmail(e.target.value)}
+                placeholder="owner@gmail.com"
+                className="w-full rounded-lg border border-gray-3 px-2 py-1.5"
+              />
+              {user?.email && (
+                <button
+                  type="button"
+                  onClick={() => setOwnerEmail(user.email)}
+                  className="whitespace-nowrap rounded-lg border border-gray-3 px-2 py-1.5 text-xs hover:bg-gray-4"
+                >
+                  {t('settings.useMyEmail')}
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-gray">{t('settings.ownerEmailHint')}</p>
           </label>
           <button
             type="button"

@@ -101,6 +101,10 @@ export const translations: Dict = {
   'ledger.to': { ta: 'முடிவு மாதம்', en: 'To Month' },
   'ledger.excelDownloadFailed': { ta: 'Excel பதிவிறக்க முடியவில்லை', en: 'Could not download Excel' },
   'ledger.imageDownloadFailed': { ta: 'படமாக பதிவிறக்க முடியவில்லை', en: 'Could not download image' },
+  'ledger.delete': { ta: 'நீக்கு', en: 'Delete' },
+  'ledger.deleteConfirm': { ta: 'இந்த பதிவை நிரந்தரமாக நீக்க வேண்டுமா? இதை மீட்டெடுக்க முடியாது.', en: 'Permanently delete this record? This cannot be undone.' },
+  'ledger.deleted': { ta: 'பதிவு நீக்கப்பட்டது', en: 'Record deleted' },
+  'ledger.deleteFailed': { ta: 'நீக்க முடியவில்லை', en: 'Could not delete' },
 
   // Receipt
   'receipt.title': { ta: '🏠 வாடகை ரசீது', en: '🏠 Rent Receipt' },
@@ -184,6 +188,9 @@ export const translations: Dict = {
   'settings.language': { ta: 'மொழி', en: 'Language' },
   'settings.defaultLanguage': { ta: 'இயல்பு மொழி', en: 'Default Language' },
   'settings.defaultLanguageHint': { ta: 'ஆப் திறக்கும் போது காட்டப்படும் மொழி இதுவாகும். எப்போது வேண்டுமானாலும் மேலே உள்ள மாற்றியை பயன்படுத்தி மாற்றலாம்.', en: 'This is the language the app opens in. You can always switch it temporarily using the toggle above.' },
+  'settings.ownerEmail': { ta: 'உரிமையாளர் மின்னஞ்சல்', en: 'Owner Email' },
+  'settings.ownerEmailHint': { ta: 'பதிவேட்டில் உள்ள பதிவுகளை நீக்க இந்த மின்னஞ்சலுடன் உள்நுழைந்தவர் மட்டுமே அனுமதிக்கப்படுவார்.', en: 'Only whoever is signed in with this email can delete records from the Ledger.' },
+  'settings.useMyEmail': { ta: 'எனது மின்னஞ்சலை பயன்படுத்து', en: 'Use my email' },
   'settings.saved': { ta: 'அமைவுகள் சேமிக்கப்பட்டன', en: 'Settings saved' },
   'settings.backupTitle': { ta: 'தரவு பேக்அப்', en: 'Data Backup' },
   'settings.backupDesc': { ta: 'வீடுகள், அனைத்து மாத பதிவுகள், EB மற்றும் வாடகை வரலாறு — ஒரு Excel கோப்பாக (தனித்தனி shts) பதிவிறக்கவும்.', en: 'Download houses, all monthly records, EB and rent history as one Excel file (separate sheets).' },

@@ -112,4 +112,17 @@ router.post('/', auth, (req, res) => {
   res.json(upsertRecord(req.body));
 });
 
+router.delete('/:id', auth, (req, res) => {
+  const ownerEmail = db.prepare("SELECT value FROM settings WHERE key = 'owner_email'").get()?.value;
+  if (!ownerEmail || req.user.email?.toLowerCase() !== ownerEmail) {
+    return res.status(403).json({ error: 'Only the owner can delete records' });
+  }
+
+  const record = db.prepare('SELECT id FROM records WHERE id = ?').get(req.params.id);
+  if (!record) return res.status(404).json({ error: 'Record not found' });
+
+  db.prepare('DELETE FROM records WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 module.exports = router;
