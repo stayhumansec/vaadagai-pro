@@ -7,6 +7,9 @@ const { seed } = require('./seed');
 const authRoutes = require('./routes/auth');
 const housesRoutes = require('./routes/houses');
 const recordsRoutes = require('./routes/records');
+const ebRoutes = require('./routes/eb');
+const rentHistoryRoutes = require('./routes/rentHistory');
+const reportsRoutes = require('./routes/reports');
 
 seed();
 
@@ -21,6 +24,9 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }))
 app.use('/api/auth', authRoutes);
 app.use('/api/houses', housesRoutes);
 app.use('/api/records', recordsRoutes);
+app.use('/api/eb', ebRoutes);
+app.use('/api/rent-history', rentHistoryRoutes);
+app.use('/api/reports', reportsRoutes);
 
 app.listen(PORT, () => {
   console.log(`வாடகை Pro server running on port ${PORT}`);
