@@ -72,6 +72,46 @@ cp Caddyfile.example Caddyfile
 # edit Caddyfile: replace your-hostname.sslip.io with your real hostname
 ```
 
+## Automated backups (recommended)
+
+The server can email itself a full Excel backup (all houses/records/EB
+readings/rent history, one sheet each) every night, and on demand from the
+Settings page. It's off by default — nothing breaks if you skip this — but
+without it, your only copy of the data is the SQLite file on this one VM.
+
+Using Gmail is the simplest free option:
+
+1. Turn on [2-Step Verification](https://myaccount.google.com/security) on
+   the Google account you want to send from (required for the next step).
+2. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords),
+   create an **App Password** (name it anything, e.g. "vaadagai-pro-backup").
+   Copy the 16-character password shown — this is **not** your normal Google
+   password, and it's shown only once.
+3. Add to `.env`:
+   ```env
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=465
+   SMTP_USER=your@gmail.com
+   SMTP_PASS=the 16-character app password (no spaces)
+   SMTP_FROM=your@gmail.com
+   BACKUP_EMAIL_TO=your@gmail.com
+   BACKUP_CRON=0 2 * * *
+   ```
+   `BACKUP_EMAIL_TO` can be a different address than `SMTP_USER` if you'd
+   rather receive backups somewhere else. `BACKUP_CRON` is a standard cron
+   expression in the server's local time (UTC in a fresh Ubuntu VM) —
+   `0 2 * * *` is 2am daily.
+4. Restart the containers so the new `.env` values are picked up:
+   ```bash
+   docker compose -f docker-compose.https.yml up -d --build
+   ```
+5. Log in to the app → **அமைவு (Settings)** → **"📧 இப்போது பேக்அப் அனுப்பு"**
+   to send a test backup immediately, rather than waiting until 2am to find
+   out whether it's wired up correctly.
+
+Any other SMTP provider works the same way — just change `SMTP_HOST`/`SMTP_PORT`
+and use that provider's credentials instead.
+
 ## 6. Run it
 
 ```bash

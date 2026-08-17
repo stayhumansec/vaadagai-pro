@@ -3,14 +3,17 @@ const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
+const cron = require('node-cron');
 require('./db');
 const { seed } = require('./seed');
+const { runBackup } = require('./lib/backup');
 const authRoutes = require('./routes/auth');
 const housesRoutes = require('./routes/houses');
 const recordsRoutes = require('./routes/records');
 const ebRoutes = require('./routes/eb');
 const rentHistoryRoutes = require('./routes/rentHistory');
 const reportsRoutes = require('./routes/reports');
+const backupRoutes = require('./routes/backup');
 
 seed();
 
@@ -28,6 +31,16 @@ app.use('/api/records', recordsRoutes);
 app.use('/api/eb', ebRoutes);
 app.use('/api/rent-history', rentHistoryRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/backup', backupRoutes);
+
+const backupCron = process.env.BACKUP_CRON || '0 2 * * *';
+if (cron.validate(backupCron)) {
+  cron.schedule(backupCron, () => {
+    runBackup().catch((err) => console.error('[backup] scheduled run failed:', err.message));
+  });
+} else {
+  console.warn(`[backup] invalid BACKUP_CRON "${backupCron}", nightly backup not scheduled`);
+}
 
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 if (fs.existsSync(clientDist)) {

@@ -1,13 +1,27 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
-import { getEBReadings, getHouses, getRecords, getRentHistory } from '../api';
+import { getEBReadings, getHouses, getRecords, getRentHistory, triggerBackupEmail } from '../api';
 import { todayYM } from '../utils';
 
 export function Setup() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [exporting, setExporting] = useState(false);
+  const [emailing, setEmailing] = useState(false);
+
+  const sendBackupEmail = async () => {
+    setEmailing(true);
+    try {
+      await triggerBackupEmail();
+      showToast('பேக்அப் மின்னஞ்சலுக்கு அனுப்பப்பட்டது', 'ok');
+    } catch (err) {
+      const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      showToast(message || 'அனுப்ப முடியவில்லை', 'err');
+    } finally {
+      setEmailing(false);
+    }
+  };
 
   const downloadFullBackup = async () => {
     setExporting(true);
@@ -90,6 +104,20 @@ export function Setup() {
         >
           {exporting ? 'தயார் செய்கிறது...' : '⬇️ அனைத்து தரவையும் Excel ஆக பதிவிறக்கு'}
         </button>
+
+        <div className="mt-4 border-t border-gray-3 pt-4">
+          <p className="text-sm text-gray">
+            ஒவ்வொரு நாளும் தானாக ஒரு பேக்அப் மின்னஞ்சல் அனுப்பப்படும் (சர்வரில் SMTP அமைக்கப்பட்டிருந்தால்). இப்போதே ஒரு சோதனை பேக்அப் அனுப்ப:
+          </p>
+          <button
+            type="button"
+            onClick={sendBackupEmail}
+            disabled={emailing}
+            className="mt-2 rounded-lg border border-gray-3 px-4 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
+          >
+            {emailing ? 'அனுப்புகிறது...' : '📧 இப்போது பேக்அப் அனுப்பு'}
+          </button>
+        </div>
       </div>
 
       <div className="rounded-xl border border-gray-3 bg-white p-4 text-sm text-gray">

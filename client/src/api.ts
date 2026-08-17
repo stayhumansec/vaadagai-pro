@@ -83,3 +83,6 @@ export const getHouseReport = (year: string) =>
   api.get<HouseReportRow[]>('/reports/houses', { params: { year } }).then((r) => r.data);
 export const getDashboardSummary = (month?: string) =>
   api.get<DashboardSummary>('/reports/dashboard', { params: { month } }).then((r) => r.data);
+
+// Backup
+export const triggerBackupEmail = () => api.post<{ sent: boolean }>('/backup/run').then((r) => r.data);
