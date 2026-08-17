@@ -2,6 +2,10 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
+require('./db');
+const { seed } = require('./seed');
+
+seed();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
