@@ -4,8 +4,10 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthCallback } from './pages/AuthCallback';
 import { Bulk } from './pages/Bulk';
 import { Dashboard } from './pages/Dashboard';
+import { Ledger } from './pages/Ledger';
 import { Login } from './pages/Login';
 import { Monthly } from './pages/Monthly';
+import { Receipt } from './pages/Receipt';
 import { Placeholder } from './pages/Placeholder';
 import { Setup } from './pages/Setup';
 
@@ -25,8 +27,8 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="/monthly" element={<Monthly />} />
         <Route path="/bulk" element={<Bulk />} />
-        <Route path="/ledger" element={<Placeholder title="பதிவேடு" />} />
-        <Route path="/receipt" element={<Placeholder title="ரசீது" />} />
+        <Route path="/ledger" element={<Ledger />} />
+        <Route path="/receipt" element={<Receipt />} />
         <Route path="/eb" element={<Placeholder title="EB டிராக்கர்" />} />
         <Route path="/tenants" element={<Placeholder title="குடியிருப்பாளர்" />} />
         <Route path="/rent-history" element={<Placeholder title="வாடகை வரலாறு" />} />
