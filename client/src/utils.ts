@@ -1,3 +1,5 @@
+import type { House, RentHistoryEntry } from './types';
+
 export const fmt = (n: number | null | undefined): string => '₹' + (n || 0).toLocaleString('en-IN');
 
 export const todayYM = (): string => {
@@ -23,4 +25,25 @@ export const payStatusLabel = (status: string): string => {
   if (status === 'full') return 'முழுமையாக';
   if (status === 'partial') return 'பகுதியாக';
   return 'இல்லை';
+};
+
+export interface EffectiveRent {
+  rent: number;
+  water: number;
+  maintenance: number;
+  eb_rate: number;
+}
+
+export const getEffectiveRent = (house: House, history: RentHistoryEntry[], month: string): EffectiveRent => {
+  const applicable = history
+    .filter((h) => h.house_id === house.id && h.effective_from <= month)
+    .sort((a, b) => b.effective_from.localeCompare(a.effective_from));
+  const row = applicable[0];
+
+  return {
+    rent: row?.rent ?? house.default_rent,
+    water: row?.water ?? house.water,
+    maintenance: row?.maintenance ?? house.maintenance,
+    eb_rate: row?.eb_rate ?? house.eb_rate,
+  };
 };
