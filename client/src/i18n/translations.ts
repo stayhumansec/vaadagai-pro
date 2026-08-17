@@ -125,6 +125,7 @@ export const translations: Dict = {
   'eb.bulkUpload': { ta: '📤 மொத்தமாக பதிவேற்று', en: '📤 Bulk Upload' },
   'eb.noDataInFile': { ta: 'கோப்பில் தரவு இல்லை', en: 'No data in file' },
   'eb.fileReadFailed': { ta: 'கோப்பை படிக்க முடியவில்லை', en: 'Could not read the file' },
+  'eb.templateDownloadFailed': { ta: 'மாதிரி கோப்பை பதிவிறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.', en: 'Could not download the sample file. Please try again.' },
   'eb.uploaded': { ta: 'EB பதிவுகள் பதிவேற்றப்பட்டன', en: 'EB readings uploaded' },
   'eb.savedWithErrors': { ta: 'பதிவுகள் சேமிக்கப்பட்டன', en: 'records saved' },
   'eb.rowErrors': { ta: 'வரிசைகளில் பிழை (வரிசை', en: 'rows had errors (row' },
@@ -166,6 +167,8 @@ export const translations: Dict = {
   'rentHistory.addTitle': { ta: 'வாடகை திருத்தம் சேர்', en: 'Add Rent Revision' },
   'rentHistory.saved': { ta: 'திருத்தம் சேமிக்கப்பட்டது', en: 'Revision saved' },
   'rentHistory.futureOnlyHint': { ta: 'இந்த திருத்தம் புதிய மாத பதிவுகளில் மட்டும் பயன்படும். பழைய பதிவுகள் மாறாது.', en: 'This revision only applies to new monthly entries. Past records are unchanged.' },
+  'rentHistory.viewTenantHistory': { ta: '🔗 வாடகை வரலாற்றில் காண்க', en: '🔗 View in Rent History' },
+  'rentHistory.selectHouseHint': { ta: 'குடியிருப்பாளர் வரலாற்றைக் காண ஒரு வீட்டைத் தேர்வு செய்யவும்.', en: 'Select a specific house above to see its previous tenants.' },
 
   // Report
   'report.yearTotal': { ta: 'ஆண்டு மொத்தம்', en: 'Year Total' },

@@ -29,6 +29,7 @@ export function EBTracker() {
   const [endReading, setEndReading] = useState(0);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,6 +37,10 @@ export function EBTracker() {
       setHouses(list);
       if (list.length > 0) setHouseId(list[0].id);
     });
+    // Warm the exceljs chunk ahead of time so the download/upload buttons
+    // don't hit a slow first-import delay (which can cost the click its
+    // "user gesture" window on some mobile browsers and fail silently).
+    import('../lib/excel');
   }, []);
 
   const load = async () => {
@@ -78,22 +83,29 @@ export function EBTracker() {
   };
 
   const downloadTemplate = async () => {
-    const { downloadExcel } = await import('../lib/excel');
-    await downloadExcel(
-      [
-        {
-          name: 'படிவம்',
-          headers: [UPLOAD_HEADERS.house, UPLOAD_HEADERS.month, UPLOAD_HEADERS.start, UPLOAD_HEADERS.end, UPLOAD_HEADERS.rate],
-          rows: [[1, todayYM(), 1000, 1120, '']],
-        },
-        {
-          name: 'வீடுகள்',
-          headers: ['வீடு எண்', 'பெயர்'],
-          rows: houses.map((h) => [h.id, h.name]),
-        },
-      ],
-      'eb-readings-template.xlsx'
-    );
+    setDownloadingTemplate(true);
+    try {
+      const { downloadExcel } = await import('../lib/excel');
+      await downloadExcel(
+        [
+          {
+            name: 'படிவம்',
+            headers: [UPLOAD_HEADERS.house, UPLOAD_HEADERS.month, UPLOAD_HEADERS.start, UPLOAD_HEADERS.end, UPLOAD_HEADERS.rate],
+            rows: [[1, todayYM(), 1000, 1120, '']],
+          },
+          {
+            name: 'வீடுகள்',
+            headers: ['வீடு எண்', 'பெயர்'],
+            rows: houses.map((h) => [h.id, h.name]),
+          },
+        ],
+        'eb-readings-template.xlsx'
+      );
+    } catch {
+      showToast(t('eb.templateDownloadFailed'), 'err');
+    } finally {
+      setDownloadingTemplate(false);
+    }
   };
 
   const handleUploadFile = async (file: File) => {
@@ -156,9 +168,10 @@ export function EBTracker() {
           <button
             type="button"
             onClick={downloadTemplate}
-            className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4"
+            disabled={downloadingTemplate}
+            className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
           >
-            {t('eb.downloadTemplate')}
+            {downloadingTemplate ? t('common.downloading') : t('eb.downloadTemplate')}
           </button>
           <button
             type="button"
