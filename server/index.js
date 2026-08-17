@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
@@ -27,6 +28,12 @@ app.use('/api/records', recordsRoutes);
 app.use('/api/eb', ebRoutes);
 app.use('/api/rent-history', rentHistoryRoutes);
 app.use('/api/reports', reportsRoutes);
+
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get(/^(?!\/api).*/, (req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+}
 
 app.listen(PORT, () => {
   console.log(`வாடகை Pro server running on port ${PORT}`);
