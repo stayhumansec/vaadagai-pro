@@ -1,0 +1,40 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        VITE_GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+    expose:
+      - '3000'
+    environment:
+      PORT: 3000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      DB_PATH: /app/data/vaadagai.db
+      UPLOAD_PATH: /app/uploads/
+    volumes:
+      - vaadagai-data:/app/data
+      - vaadagai-uploads:/app/uploads
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      - app
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+
+volumes:
+  vaadagai-data:
+  vaadagai-uploads:
+  caddy-data:
+  caddy-config:

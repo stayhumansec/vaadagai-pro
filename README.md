@@ -111,6 +111,8 @@ docker compose up --build
 
 This builds the frontend, installs server dependencies, and runs everything as a single container on port 3000. The SQLite database and uploaded proof documents are kept in named volumes (`vaadagai-data`, `vaadagai-uploads`) so they survive container rebuilds.
 
+**Deploying somewhere real, with HTTPS?** Google OAuth requires HTTPS on any redirect URI that isn't `localhost`. See **[docs/DEPLOY.md](docs/DEPLOY.md)** for a free-tier VM + Caddy (automatic HTTPS) setup using `docker-compose.https.yml`.
+
 ## Scripts
 
 | Command | Where | What |
