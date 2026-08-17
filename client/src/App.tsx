@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthCallback } from './pages/AuthCallback';
+import { Dashboard } from './pages/Dashboard';
 import { Login } from './pages/Login';
 import { Placeholder } from './pages/Placeholder';
 import { Setup } from './pages/Setup';
@@ -19,7 +20,7 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Placeholder title="டாஷ்போர்டு" />} />
+        <Route index element={<Dashboard />} />
         <Route path="/monthly" element={<Placeholder title="மாத பதிவு" />} />
         <Route path="/bulk" element={<Placeholder title="மொத்த பதிவு" />} />
         <Route path="/ledger" element={<Placeholder title="பதிவேடு" />} />
