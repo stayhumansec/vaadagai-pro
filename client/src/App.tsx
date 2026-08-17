@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthCallback } from './pages/AuthCallback';
 import { Bulk } from './pages/Bulk';
 import { Dashboard } from './pages/Dashboard';
+import { EBTracker } from './pages/EBTracker';
 import { Ledger } from './pages/Ledger';
 import { Login } from './pages/Login';
 import { Monthly } from './pages/Monthly';
@@ -29,7 +30,7 @@ function App() {
         <Route path="/bulk" element={<Bulk />} />
         <Route path="/ledger" element={<Ledger />} />
         <Route path="/receipt" element={<Receipt />} />
-        <Route path="/eb" element={<Placeholder title="EB டிராக்கர்" />} />
+        <Route path="/eb" element={<EBTracker />} />
         <Route path="/tenants" element={<Placeholder title="குடியிருப்பாளர்" />} />
         <Route path="/rent-history" element={<Placeholder title="வாடகை வரலாறு" />} />
         <Route path="/report" element={<Placeholder title="அறிக்கை" />} />
