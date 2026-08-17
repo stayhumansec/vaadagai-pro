@@ -43,3 +43,22 @@ jobs:
         run: cd client && npx tsc --noEmit
       - name: Build
         run: cd client && npm run build
+
+  deploy:
+    name: Deploy to production
+    needs: [backend, frontend]
+    if: >
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      secrets.DEPLOY_SSH_KEY != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH in and rebuild
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd vaadagai-pro
+            git pull
+            docker compose -f docker-compose.https.yml up -d --build
