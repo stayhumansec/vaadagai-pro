@@ -66,6 +66,40 @@ router.put('/:id', auth, (req, res) => {
   res.json(db.prepare('SELECT * FROM houses WHERE id = ?').get(req.params.id));
 });
 
+router.get('/:id/tenant-history', auth, (req, res) => {
+  const rows = db.prepare('SELECT * FROM tenant_history WHERE house_id = ? ORDER BY created_at DESC').all(req.params.id);
+  res.json(rows);
+});
+
+router.post('/:id/new-tenant', auth, (req, res) => {
+  const house = db.prepare('SELECT * FROM houses WHERE id = ?').get(req.params.id);
+  if (!house) return res.status(404).json({ error: 'House not found' });
+
+  const { name, phone, members, proof_type, proof_number, move_in_date } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required' });
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const run = db.transaction(() => {
+    if (house.name) {
+      db.prepare(`
+        INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, today);
+    }
+
+    db.prepare(`
+      UPDATE houses SET
+        name = ?, phone = ?, members = ?, proof_type = ?, proof_number = ?,
+        move_in_date = ?, move_out_date = NULL, status = 'Active'
+      WHERE id = ?
+    `).run(name, phone || null, members || 1, proof_type || 'Aadhaar', proof_number || null, move_in_date || today, house.id);
+  });
+  run();
+
+  res.json(db.prepare('SELECT * FROM houses WHERE id = ?').get(house.id));
+});
+
 router.post('/:id/proof', auth, upload.single('proof'), (req, res) => {
   const house = db.prepare('SELECT * FROM houses WHERE id = ?').get(req.params.id);
   if (!house) return res.status(404).json({ error: 'House not found' });

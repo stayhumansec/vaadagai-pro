@@ -48,6 +48,19 @@ export interface EBReading {
   created_at: string;
 }
 
+export interface TenantHistoryEntry {
+  id: number;
+  house_id: number;
+  name: string;
+  phone: string | null;
+  members: number;
+  proof_type: string | null;
+  proof_number: string | null;
+  move_in_date: string | null;
+  move_out_date: string | null;
+  created_at: string;
+}
+
 export interface RentHistoryEntry {
   id: number;
   house_id: number;

@@ -1,9 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../components/Modal';
-import { getHouses, getRecords, getRentHistory, updateHouse, uploadHouseProof } from '../api';
-import type { House, HouseStatus, RentHistoryEntry, RentRecord } from '../types';
+import { addNewTenant, getHouses, getRecords, getRentHistory, getTenantHistory, updateHouse, uploadHouseProof } from '../api';
+import type { House, HouseStatus, RentHistoryEntry, RentRecord, TenantHistoryEntry } from '../types';
 import { fmt, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
+
+interface NewTenantForm {
+  name: string;
+  phone: string;
+  members: number;
+  proof_type: string;
+  proof_number: string;
+  move_in_date: string;
+}
+
+const emptyNewTenantForm = (): NewTenantForm => ({
+  name: '',
+  phone: '',
+  members: 1,
+  proof_type: 'Aadhaar',
+  proof_number: '',
+  move_in_date: new Date().toISOString().slice(0, 10),
+});
 
 interface HouseForm {
   id: number;
@@ -45,8 +63,12 @@ export function Tenants() {
   const [records, setRecords] = useState<RentRecord[]>([]);
   const [editing, setEditing] = useState<HouseForm | null>(null);
   const [history, setHistory] = useState<RentHistoryEntry[]>([]);
+  const [tenantHistory, setTenantHistory] = useState<TenantHistoryEntry[]>([]);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [newTenantMode, setNewTenantMode] = useState(false);
+  const [newTenantForm, setNewTenantForm] = useState<NewTenantForm>(emptyNewTenantForm());
+  const [startingNewTenant, setStartingNewTenant] = useState(false);
 
   const load = async () => {
     const [houseList, recordList] = await Promise.all([getHouses(), getRecords({})]);
@@ -70,13 +92,35 @@ export function Tenants() {
   const openEdit = (house: House) => {
     setEditing(toForm(house));
     setProofFile(null);
+    setNewTenantMode(false);
+    setNewTenantForm(emptyNewTenantForm());
     getRentHistory(house.id).then(setHistory);
+    getTenantHistory(house.id).then(setTenantHistory);
   };
 
   const closeEdit = () => {
     setEditing(null);
     setHistory([]);
+    setTenantHistory([]);
     setProofFile(null);
+    setNewTenantMode(false);
+  };
+
+  const handleNewTenant = async () => {
+    if (!editing || !newTenantForm.name.trim()) return;
+    setStartingNewTenant(true);
+    try {
+      await addNewTenant(editing.id, newTenantForm);
+      showToast('புதிய குடியிருப்பாளர் பதிவு செய்யப்பட்டது, முந்தைய குடியிருப்பாளர் வரலாற்றில் சேமிக்கப்பட்டார்', 'ok');
+      const updatedHouses = await getHouses();
+      setHouses(updatedHouses);
+      const updatedHouse = updatedHouses.find((h) => h.id === editing.id);
+      if (updatedHouse) openEdit(updatedHouse);
+    } catch {
+      showToast('சேமிக்க முடியவில்லை', 'err');
+    } finally {
+      setStartingNewTenant(false);
+    }
   };
 
   const handleSave = async () => {
@@ -191,6 +235,92 @@ export function Tenants() {
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${editing.status === 'Active' ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setNewTenantMode((v) => !v);
+                setNewTenantForm(emptyNewTenantForm());
+              }}
+              className="w-full rounded-lg border border-dashed border-brand-blue px-3 py-2 text-sm text-brand-blue hover:bg-brand-blue/5"
+            >
+              {newTenantMode ? '✕ புதிய குடியிருப்பாளர் ரத்து' : '🔄 புதிய குடியிருப்பாளர் — தற்போதைய குடியிருப்பாளரை வரலாற்றில் சேமித்து மாற்றவும்'}
+            </button>
+
+            {newTenantMode && (
+              <div className="space-y-2 rounded-lg border border-brand-blue bg-brand-blue/5 p-3">
+                <p className="text-xs text-gray">
+                  தற்போதைய குடியிருப்பாளர் ({editing.name || '—'}) தானாக முந்தைய குடியிருப்பாளர் வரலாற்றில் சேமிக்கப்படுவார்.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-sm">
+                    புதிய பெயர்
+                    <input
+                      value={newTenantForm.name}
+                      onChange={(e) => setNewTenantForm({ ...newTenantForm, name: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    தொலைபேசி
+                    <input
+                      value={newTenantForm.phone}
+                      onChange={(e) => setNewTenantForm({ ...newTenantForm, phone: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+                    />
+                  </label>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="text-xs">
+                    உறுப்பினர்கள்
+                    <input
+                      type="number"
+                      value={newTenantForm.members}
+                      onChange={(e) => setNewTenantForm({ ...newTenantForm, members: +e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+                    />
+                  </label>
+                  <label className="text-xs">
+                    ஆவண வகை
+                    <select
+                      value={newTenantForm.proof_type}
+                      onChange={(e) => setNewTenantForm({ ...newTenantForm, proof_type: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+                    >
+                      <option value="Aadhaar">Aadhaar</option>
+                      <option value="Voter ID">Voter ID</option>
+                      <option value="PAN">PAN</option>
+                      <option value="Passport">Passport</option>
+                    </select>
+                  </label>
+                  <label className="text-xs">
+                    ஆவண எண்
+                    <input
+                      value={newTenantForm.proof_number}
+                      onChange={(e) => setNewTenantForm({ ...newTenantForm, proof_number: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+                    />
+                  </label>
+                </div>
+                <label className="block text-sm">
+                  குடி வந்த தேதி
+                  <input
+                    type="date"
+                    value={newTenantForm.move_in_date}
+                    onChange={(e) => setNewTenantForm({ ...newTenantForm, move_in_date: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleNewTenant}
+                  disabled={startingNewTenant || !newTenantForm.name.trim()}
+                  className="w-full rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
+                >
+                  {startingNewTenant ? 'சேமிக்கிறது...' : 'உறுதிப்படுத்து — புதிய குடியிருப்பாளரை சேர்'}
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
@@ -337,6 +467,34 @@ export function Tenants() {
                           <td className="px-2 py-1">{fmt(h.rent)}</td>
                           <td className="px-2 py-1">{fmt(h.water)}</td>
                           <td className="px-2 py-1">{fmt(h.maintenance)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {tenantHistory.length > 0 && (
+              <div>
+                <p className="mb-1 text-sm font-medium text-navy">முந்தைய குடியிருப்பாளர்கள்</p>
+                <div className="overflow-x-auto rounded-lg border border-gray-3">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-3 text-gray">
+                        <th className="px-2 py-1">பெயர்</th>
+                        <th className="px-2 py-1">தொலைபேசி</th>
+                        <th className="px-2 py-1">குடி வந்தது</th>
+                        <th className="px-2 py-1">குடி வெளியேறியது</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tenantHistory.map((t) => (
+                        <tr key={t.id} className="border-b border-gray-3 last:border-0">
+                          <td className="px-2 py-1">{t.name}</td>
+                          <td className="px-2 py-1">{t.phone ?? '—'}</td>
+                          <td className="px-2 py-1">{t.move_in_date ?? '—'}</td>
+                          <td className="px-2 py-1">{t.move_out_date ?? '—'}</td>
                         </tr>
                       ))}
                     </tbody>
