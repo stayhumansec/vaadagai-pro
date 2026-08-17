@@ -77,6 +77,20 @@ function migrate() {
       FOREIGN KEY (house_id) REFERENCES houses(id)
     );
 
+    CREATE TABLE IF NOT EXISTS tenant_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      house_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      phone TEXT,
+      members INTEGER DEFAULT 1,
+      proof_type TEXT,
+      proof_number TEXT,
+      move_in_date TEXT,
+      move_out_date TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (house_id) REFERENCES houses(id)
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT
@@ -95,6 +109,7 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_records_house_month ON records(house_id, month);
     CREATE INDEX IF NOT EXISTS idx_eb_readings_house_month ON eb_readings(house_id, month);
     CREATE INDEX IF NOT EXISTS idx_rent_history_house ON rent_history(house_id, effective_from);
+    CREATE INDEX IF NOT EXISTS idx_tenant_history_house ON tenant_history(house_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
   `);
 

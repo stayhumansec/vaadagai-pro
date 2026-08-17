@@ -10,6 +10,7 @@ import type {
   MonthlyReportRow,
   RentHistoryEntry,
   RentRecord,
+  TenantHistoryEntry,
 } from './types';
 
 export const api = axios.create({ baseURL: '/api' });
@@ -45,6 +46,12 @@ export const getHouses = () => api.get<House[]>('/houses').then((r) => r.data);
 export const getHouse = (id: number) => api.get<House>(`/houses/${id}`).then((r) => r.data);
 export const updateHouse = (id: number, data: Partial<House>) =>
   api.put<House>(`/houses/${id}`, data).then((r) => r.data);
+export const getTenantHistory = (id: number) =>
+  api.get<TenantHistoryEntry[]>(`/houses/${id}/tenant-history`).then((r) => r.data);
+export const addNewTenant = (
+  id: number,
+  data: { name: string; phone?: string; members?: number; proof_type?: string; proof_number?: string; move_in_date?: string }
+) => api.post<House>(`/houses/${id}/new-tenant`, data).then((r) => r.data);
 export const uploadHouseProof = (id: number, file: File) => {
   const formData = new FormData();
   formData.append('proof', file);
