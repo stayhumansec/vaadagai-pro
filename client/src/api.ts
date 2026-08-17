@@ -63,8 +63,8 @@ export const getRecord = (house: number, month: string) =>
 export const saveRecord = (data: Partial<RentRecord>) => api.post<RentRecord>('/records', data).then((r) => r.data);
 export const saveRecordsBulk = (data: Partial<RentRecord>[]) =>
   api.post<RentRecord[]>('/records/bulk', data).then((r) => r.data);
-export const autoGenerateRecords = (month: string) =>
-  api.post<AutoGenerateResult>('/records/auto-generate', { month }).then((r) => r.data);
+export const autoGenerateRecords = (month: string, house_ids?: number[]) =>
+  api.post<AutoGenerateResult>('/records/auto-generate', { month, house_ids }).then((r) => r.data);
 
 // EB readings
 export const getEBReadings = (params: { house_id?: number; year?: string }) =>

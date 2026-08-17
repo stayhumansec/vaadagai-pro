@@ -1,14 +1,15 @@
 import { forwardRef } from 'react';
-import type { House, RentRecord } from '../types';
+import type { EBReading, House, RentRecord } from '../types';
 import { fmt, mlabel } from '../utils';
 
 interface ReceiptCardProps {
   house: House;
   record: RentRecord;
+  ebReading?: EBReading | null;
 }
 
 export const ReceiptCard = forwardRef<HTMLDivElement, ReceiptCardProps>(function ReceiptCard(
-  { house, record },
+  { house, record, ebReading },
   ref
 ) {
   return (
@@ -33,12 +34,16 @@ export const ReceiptCard = forwardRef<HTMLDivElement, ReceiptCardProps>(function
         <span>மின்சாரம் (EB)</span>
         <span>{fmt(record.eb)}</span>
       </div>
-      {record.other > 0 && (
-        <div className="flex justify-between">
-          <span>பராமரிப்பு</span>
-          <span>{fmt(record.other)}</span>
+      {ebReading && (
+        <div className="ml-2 flex justify-between text-xs text-gray">
+          <span>வாசிப்பு {ebReading.start_reading} → {ebReading.end_reading}</span>
+          <span>{ebReading.units} யூனிட்</span>
         </div>
       )}
+      <div className="flex justify-between">
+        <span>பராமரிப்பு</span>
+        <span>{fmt(record.maintenance)}</span>
+      </div>
       {record.mun_bakki > 0 && (
         <div className="flex justify-between text-brand-orange">
           <span>📌 முன் பாக்கி</span>

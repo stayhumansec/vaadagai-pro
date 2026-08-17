@@ -37,7 +37,7 @@ function migrate() {
       rent INTEGER DEFAULT 0,
       water INTEGER DEFAULT 0,
       eb INTEGER DEFAULT 0,
-      other INTEGER DEFAULT 0,
+      maintenance INTEGER DEFAULT 0,
       mun_bakki INTEGER DEFAULT 0,
       total INTEGER DEFAULT 0,
       pay_status TEXT DEFAULT 'none',
@@ -97,6 +97,13 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_rent_history_house ON rent_history(house_id, effective_from);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
   `);
+
+  // records.other was renamed to records.maintenance -- for a DB created before
+  // this change, rename the existing column in place so no data is lost.
+  const recordColumns = db.prepare("PRAGMA table_info(records)").all().map((c) => c.name);
+  if (recordColumns.includes('other') && !recordColumns.includes('maintenance')) {
+    db.exec('ALTER TABLE records RENAME COLUMN other TO maintenance');
+  }
 }
 
 migrate();

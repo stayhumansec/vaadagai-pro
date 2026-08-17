@@ -9,7 +9,7 @@ import { useToast } from '../components/Toast';
 interface EntryForm {
   rent: number;
   water: number;
-  other: number;
+  maintenance: number;
   eb: number;
   mun_bakki: number;
   pay_status: PayStatus;
@@ -29,6 +29,9 @@ export function Monthly() {
   const [activeHouse, setActiveHouse] = useState<House | null>(null);
   const [form, setForm] = useState<EntryForm | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoModalOpen, setAutoModalOpen] = useState(false);
+  const [selectedHouseIds, setSelectedHouseIds] = useState<Set<number>>(new Set());
+  const [autoGenerating, setAutoGenerating] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -75,7 +78,7 @@ export function Monthly() {
         ? {
             rent: existing.rent,
             water: existing.water,
-            other: existing.other,
+            maintenance: existing.maintenance,
             eb: existing.eb,
             mun_bakki: existing.mun_bakki,
             pay_status: existing.pay_status,
@@ -85,7 +88,7 @@ export function Monthly() {
         : {
             rent: eff.rent,
             water: eff.water,
-            other: eff.maintenance,
+            maintenance: eff.maintenance,
             eb: ebAmount,
             mun_bakki: munBakki,
             pay_status: 'none',
@@ -102,7 +105,7 @@ export function Monthly() {
 
   const total = useMemo(() => {
     if (!form) return 0;
-    return form.rent + form.water + form.eb + form.other + form.mun_bakki;
+    return form.rent + form.water + form.eb + form.maintenance + form.mun_bakki;
   }, [form]);
 
   const received = useMemo(() => {
@@ -114,13 +117,33 @@ export function Monthly() {
 
   const balance = total - received;
 
+  const openAutoModal = () => {
+    setSelectedHouseIds(new Set(houses.map((h) => h.id)));
+    setAutoModalOpen(true);
+  };
+
+  const toggleSelectedHouse = (houseId: number) => {
+    setSelectedHouseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(houseId)) next.delete(houseId);
+      else next.add(houseId);
+      return next;
+    });
+  };
+
   const handleAutoGenerate = async () => {
-    const result = await autoGenerateRecords(month);
-    showToast(
-      `${result.created.length} பதிவுகள் உருவாக்கப்பட்டன, ${result.skipped.length} தவிர்க்கப்பட்டன`,
-      result.missingEB.length ? 'warn' : 'ok'
-    );
-    load();
+    setAutoGenerating(true);
+    try {
+      const result = await autoGenerateRecords(month, Array.from(selectedHouseIds));
+      showToast(
+        `${result.created.length} பதிவுகள் உருவாக்கப்பட்டன, ${result.skipped.length} தவிர்க்கப்பட்டன`,
+        result.missingEB.length ? 'warn' : 'ok'
+      );
+      setAutoModalOpen(false);
+      load();
+    } finally {
+      setAutoGenerating(false);
+    }
   };
 
   const handleSave = async () => {
@@ -133,7 +156,7 @@ export function Monthly() {
         rent: form.rent,
         water: form.water,
         eb: form.eb,
-        other: form.other,
+        maintenance: form.maintenance,
         pay_status: form.pay_status,
         received,
         note: form.note,
@@ -162,7 +185,7 @@ export function Monthly() {
         </button>
         <button
           type="button"
-          onClick={handleAutoGenerate}
+          onClick={openAutoModal}
           className="rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90"
         >
           ✨ Auto உருவாக்கு
@@ -268,8 +291,8 @@ export function Monthly() {
                 பராமரிப்பு ₹
                 <input
                   type="number"
-                  value={form.other}
-                  onChange={(e) => setForm({ ...form, other: +e.target.value })}
+                  value={form.maintenance}
+                  onChange={(e) => setForm({ ...form, maintenance: +e.target.value })}
                   className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
                 />
               </label>
@@ -326,6 +349,51 @@ export function Monthly() {
                 rows={2}
               />
             </label>
+          </div>
+        </Modal>
+      )}
+
+      {autoModalOpen && (
+        <Modal
+          title="✨ Auto உருவாக்கு — வீடுகளை தேர்வு செய்யவும்"
+          onClose={() => setAutoModalOpen(false)}
+          footer={
+            <>
+              <button type="button" onClick={() => setAutoModalOpen(false)} className="rounded-lg border border-gray-3 px-4 py-2 text-sm">
+                ரத்து
+              </button>
+              <button
+                type="button"
+                onClick={handleAutoGenerate}
+                disabled={autoGenerating || selectedHouseIds.size === 0}
+                className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
+              >
+                {autoGenerating ? 'உருவாக்குகிறது...' : `உருவாக்கு (${selectedHouseIds.size})`}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 border-b border-gray-3 pb-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={selectedHouseIds.size === houses.length && houses.length > 0}
+                onChange={(e) => setSelectedHouseIds(e.target.checked ? new Set(houses.map((h) => h.id)) : new Set())}
+              />
+              அனைத்தும் தேர்வு செய்
+            </label>
+            <div className="max-h-64 space-y-1 overflow-y-auto">
+              {houses.map((house) => (
+                <label key={house.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-gray-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedHouseIds.has(house.id)}
+                    onChange={() => toggleSelectedHouse(house.id)}
+                  />
+                  வீடு {house.id} — {house.name}
+                </label>
+              ))}
+            </div>
           </div>
         </Modal>
       )}
