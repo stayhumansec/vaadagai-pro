@@ -94,3 +94,31 @@ down` and `up` again (or a full server reboot) doesn't lose data. Only
 git pull
 docker compose -f docker-compose.https.yml up -d --build
 ```
+
+## Auto-deploy on every push (optional)
+
+`.github/workflows/ci.yml` includes a `deploy` job that runs the two commands
+above automatically over SSH whenever CI passes on `main`. It's inactive
+until you add three repository secrets — until then it's silently skipped,
+not failing.
+
+On GitHub: **repo → Settings → Secrets and variables → Actions → New
+repository secret**, add:
+
+| Secret name | Value |
+|---|---|
+| `DEPLOY_HOST` | Your server's IP, e.g. `129.225.135.31` |
+| `DEPLOY_USER` | `ubuntu` |
+| `DEPLOY_SSH_KEY` | The **full contents** of your private key file (the `.key`/`.pem` you downloaded when creating the VM), including the `-----BEGIN ... PRIVATE KEY-----` / `-----END...-----` lines |
+
+The corresponding public key is already authorized on the server (it's the
+same key pair you used to create the VM), so no server-side changes are
+needed — just the three secrets above.
+
+**Security note:** this gives GitHub Actions (and therefore anyone who can
+push to `main` or trigger a workflow run) the ability to run arbitrary
+commands on your server as the `ubuntu` user. That's a normal tradeoff for a
+personal project with one contributor, but don't reuse this key for
+anything you'd regret losing control of, and rotate it (delete the secret,
+generate a new key pair, update the server's `~/.ssh/authorized_keys`) if
+you ever suspect it's been exposed.
