@@ -42,20 +42,18 @@ export function Ledger() {
     { total: 0, received: 0, balance: 0 }
   );
 
-  const downloadCsv = () => {
-    const header = ['வீடு', 'பெயர்', 'மாதம்', 'வாடகை', 'தண்ணீர்', 'EB', 'முன் பாக்கி', 'மொத்தம்', 'நிலை', 'வசூல்', 'இருப்பு'];
+  const downloadXlsx = async () => {
+    const headers = ['வீடு', 'பெயர்', 'மாதம்', 'வாடகை', 'தண்ணீர்', 'EB', 'முன் பாக்கி', 'மொத்தம்', 'நிலை', 'வசூல்', 'இருப்பு'];
     const rows = records.map((r) => [
       r.house_id, houseName(r.house_id), r.month, r.rent, r.water, r.eb, r.mun_bakki, r.total, r.pay_status, r.received, r.balance,
     ]);
     rows.push(['', '', '', '', '', '', '', totals.total, '', totals.received, totals.balance]);
-    const csv = [header, ...rows].map((row) => row.map((v) => `"${v}"`).join(',')).join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ledger_${monthFrom}_${monthTo}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const { downloadExcel } = await import('../lib/excel');
+      await downloadExcel([{ name: 'Ledger', headers, rows }], `ledger_${monthFrom}_${monthTo}.xlsx`);
+    } catch {
+      showToast('Excel பதிவிறக்க முடியவில்லை', 'err');
+    }
   };
 
   const downloadImage = async () => {
@@ -99,8 +97,8 @@ export function Ledger() {
           ஏற்று
         </button>
         <div className="ml-auto flex gap-2">
-          <button type="button" onClick={downloadCsv} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
-            ⬇️ CSV
+          <button type="button" onClick={downloadXlsx} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
+            ⬇️ Excel
           </button>
           <button type="button" onClick={downloadImage} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
             🖼️ படம்

@@ -1,7 +1,66 @@
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
+import { getEBReadings, getHouses, getRecords, getRentHistory } from '../api';
+import { todayYM } from '../utils';
 
 export function Setup() {
   const { user } = useAuth();
+  const { showToast } = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  const downloadFullBackup = async () => {
+    setExporting(true);
+    try {
+      const [houses, records, ebReadings, rentHistory] = await Promise.all([
+        getHouses(),
+        getRecords({}),
+        getEBReadings({}),
+        getRentHistory(),
+      ]);
+      const houseName = (id: number) => houses.find((h) => h.id === id)?.name ?? `வீடு ${id}`;
+      const { downloadExcel } = await import('../lib/excel');
+
+      await downloadExcel(
+        [
+          {
+            name: 'Houses',
+            headers: ['ID', 'பெயர்', 'தொலைபேசி', 'வாடகை', 'தண்ணீர்', 'பராமரிப்பு', 'உறுப்பினர்கள்', 'EB விலை', 'நிலை', 'குடி வந்தது', 'குடி வெளியேறியது'],
+            rows: houses.map((h) => [
+              h.id, h.name, h.phone ?? '', h.default_rent, h.water, h.maintenance, h.members, h.eb_rate, h.status, h.move_in_date ?? '', h.move_out_date ?? '',
+            ]),
+          },
+          {
+            name: 'Records',
+            headers: ['வீடு', 'பெயர்', 'மாதம்', 'வாடகை', 'தண்ணீர்', 'EB', 'பராமரிப்பு', 'முன் பாக்கி', 'மொத்தம்', 'நிலை', 'வசூல்', 'இருப்பு', 'குறிப்பு'],
+            rows: records.map((r) => [
+              r.house_id, houseName(r.house_id), r.month, r.rent, r.water, r.eb, r.other, r.mun_bakki, r.total, r.pay_status, r.received, r.balance, r.note,
+            ]),
+          },
+          {
+            name: 'EB Readings',
+            headers: ['வீடு', 'பெயர்', 'மாதம்', 'தொடக்கம்', 'முடிவு', 'யூனிட்', 'விலை', 'தொகை'],
+            rows: ebReadings.map((e) => [
+              e.house_id, houseName(e.house_id), e.month, e.start_reading, e.end_reading, e.units, e.rate, e.amount,
+            ]),
+          },
+          {
+            name: 'Rent History',
+            headers: ['வீடு', 'பெயர்', 'பயன்பாடு மாதம்', 'வாடகை', 'தண்ணீர்', 'பராமரிப்பு', 'EB விலை', 'குறிப்பு'],
+            rows: rentHistory.map((h) => [
+              h.house_id, houseName(h.house_id), h.effective_from, h.rent, h.water, h.maintenance, h.eb_rate, h.note,
+            ]),
+          },
+        ],
+        `vaadagai-pro-backup-${todayYM()}.xlsx`
+      );
+      showToast('பேக்அப் பதிவிறக்கப்பட்டது', 'ok');
+    } catch {
+      showToast('பேக்அப் பதிவிறக்க முடியவில்லை', 'err');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
@@ -16,6 +75,21 @@ export function Setup() {
         <h2 className="font-medium text-navy">உரிமையாளர்</h2>
         <p className="mt-1 text-sm text-gray">{user?.name ?? '—'}</p>
         <p className="text-sm text-gray">{user?.email ?? '—'}</p>
+      </div>
+
+      <div className="rounded-xl border border-gray-3 bg-white p-4">
+        <h2 className="font-medium text-navy">தரவு பேக்அப்</h2>
+        <p className="mt-1 text-sm text-gray">
+          வீடுகள், அனைத்து மாத பதிவுகள், EB மற்றும் வாடகை வரலாறு — ஒரு Excel கோப்பாக (தனித்தனி shts) பதிவிறக்கவும்.
+        </p>
+        <button
+          type="button"
+          onClick={downloadFullBackup}
+          disabled={exporting}
+          className="mt-3 rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
+        >
+          {exporting ? 'தயார் செய்கிறது...' : '⬇️ அனைத்து தரவையும் Excel ஆக பதிவிறக்கு'}
+        </button>
       </div>
 
       <div className="rounded-xl border border-gray-3 bg-white p-4 text-sm text-gray">
