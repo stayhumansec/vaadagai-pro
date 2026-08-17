@@ -10,8 +10,9 @@ import { Login } from './pages/Login';
 import { Monthly } from './pages/Monthly';
 import { Receipt } from './pages/Receipt';
 import { RentHistory } from './pages/RentHistory';
+import { Report } from './pages/Report';
 import { Tenants } from './pages/Tenants';
-import { Placeholder } from './pages/Placeholder';
+import { WhatsApp } from './pages/WhatsApp';
 import { Setup } from './pages/Setup';
 
 function App() {
@@ -35,8 +36,8 @@ function App() {
         <Route path="/eb" element={<EBTracker />} />
         <Route path="/tenants" element={<Tenants />} />
         <Route path="/rent-history" element={<RentHistory />} />
-        <Route path="/report" element={<Placeholder title="அறிக்கை" />} />
-        <Route path="/whatsapp" element={<Placeholder title="WhatsApp நினைவூட்டல்" />} />
+        <Route path="/report" element={<Report />} />
+        <Route path="/whatsapp" element={<WhatsApp />} />
         <Route path="/settings" element={<Setup />} />
       </Route>
 
