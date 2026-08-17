@@ -29,8 +29,8 @@ export function HouseCard({ house, status, amount, munBakki, onClick }: HouseCar
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`relative min-w-[110px] rounded-xl border p-3 text-left transition-all duration-150 ${style.border} ${style.bg} ${
-        onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md' : 'cursor-default'
+      className={`tilt-hover relative min-w-[110px] rounded-xl border p-3 text-left shadow-soft ${style.border} ${style.bg} ${
+        onClick ? 'cursor-pointer hover:shadow-elevated' : 'cursor-default'
       }`}
     >
       {!!munBakki && munBakki > 0 && (

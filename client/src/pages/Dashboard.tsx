@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
 import { HouseCardSkeleton, MetricCardSkeleton, Skeleton } from '../components/Skeleton';
+import { Reveal } from '../components/Reveal';
 import { getDashboardSummary, getHouses, getRecords } from '../api';
 import type { DashboardSummary, House, RentRecord } from '../types';
 import { fmt, mlabel, todayYM } from '../utils';
 import { useLanguage } from '../context/LanguageContext';
 
 function progressColor(pct: number): string {
-  if (pct >= 90) return 'bg-brand-green';
-  if (pct >= 50) return 'bg-brand-amber';
-  return 'bg-brand-red';
+  if (pct >= 90) return 'from-brand-green to-emerald-400';
+  if (pct >= 50) return 'from-brand-amber to-yellow-400';
+  return 'from-brand-red to-rose-400';
 }
 
 export function Dashboard() {
@@ -57,7 +58,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-3 bg-white px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-3/70 bg-white px-4 py-3 text-sm shadow-soft">
         <span className="font-medium text-navy">{mlabel(month, language)}</span>
         <span className="flex items-center gap-1 text-gray">
           <span className={`h-2 w-2 rounded-full transition-colors ${connected ? 'bg-brand-green' : connected === false ? 'bg-brand-red' : 'bg-gray-3'}`} />
@@ -70,7 +71,7 @@ export function Dashboard() {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <Reveal className="flex flex-wrap gap-3">
         {loading && !summary ? (
           Array.from({ length: 5 }).map((_, i) => <MetricCardSkeleton key={i} />)
         ) : (
@@ -82,19 +83,19 @@ export function Dashboard() {
             <MetricCard label={t('dashboard.efficiency')} value={`${efficiency}%`} colorClass="text-brand-purple" />
           </>
         )}
-      </div>
+      </Reveal>
 
-      <div className="rounded-xl border border-gray-3 bg-white p-4">
+      <Reveal delayMs={60} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
         <p className="mb-2 text-sm text-gray">{t('dashboard.progress')}</p>
         <div className="h-3 w-full overflow-hidden rounded-full bg-gray-3">
           <div
-            className={`h-full rounded-full transition-[width] duration-500 ${progressColor(efficiency)}`}
+            className={`h-full rounded-full bg-gradient-to-r transition-[width] duration-700 ease-premium ${progressColor(efficiency)}`}
             style={{ width: `${Math.min(100, efficiency)}%` }}
           />
         </div>
-      </div>
+      </Reveal>
 
-      <div>
+      <Reveal delayMs={100}>
         <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.houses')}</p>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3">
           {loading && houses.length === 0
@@ -119,9 +120,9 @@ export function Dashboard() {
             <p className="mt-2 text-sm text-gray">{t('dashboard.noHouses')}</p>
           </div>
         )}
-      </div>
+      </Reveal>
 
-      <div className="rounded-xl border border-gray-3 bg-white p-4">
+      <Reveal delayMs={140} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
         <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.dueHouses')}</p>
         {loading && houses.length === 0 ? (
           <div className="space-y-2">
@@ -176,7 +177,7 @@ export function Dashboard() {
             </table>
           </div>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }
