@@ -1,0 +1,10 @@
+# Copy this to `Caddyfile` and replace the address below with your own
+# domain, or a free sslip.io hostname that resolves to your server's IP
+# (e.g. 140-238-12-34.sslip.io for the IP 140.238.12.34).
+#
+# Caddy automatically obtains and renews a Let's Encrypt certificate for
+# whatever hostname you put here — no manual certbot/nginx config needed.
+
+your-hostname.sslip.io {
+	reverse_proxy app:3000
+}
