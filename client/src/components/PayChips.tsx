@@ -1,9 +1,10 @@
 import type { PayStatus } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
-const OPTIONS: { value: PayStatus; label: string; activeClass: string }[] = [
-  { value: 'full', label: '✅ முழுமையாக', activeClass: 'bg-brand-green text-white border-brand-green' },
-  { value: 'partial', label: '⚡ பகுதியாக', activeClass: 'bg-brand-amber text-white border-brand-amber' },
-  { value: 'none', label: '❌ இல்லை', activeClass: 'bg-brand-red text-white border-brand-red' },
+const OPTIONS: { value: PayStatus; labelKey: string; activeClass: string }[] = [
+  { value: 'full', labelKey: 'status.full', activeClass: 'bg-brand-green text-white border-brand-green' },
+  { value: 'partial', labelKey: 'status.partial', activeClass: 'bg-brand-amber text-white border-brand-amber' },
+  { value: 'none', labelKey: 'status.none', activeClass: 'bg-brand-red text-white border-brand-red' },
 ];
 
 interface PayChipsProps {
@@ -12,6 +13,7 @@ interface PayChipsProps {
 }
 
 export function PayChips({ value, onChange }: PayChipsProps) {
+  const { t } = useLanguage();
   return (
     <div className="flex flex-wrap gap-2">
       {OPTIONS.map((opt) => (
@@ -23,7 +25,7 @@ export function PayChips({ value, onChange }: PayChipsProps) {
             value === opt.value ? opt.activeClass : 'border-gray-3 text-gray hover:bg-gray-4'
           }`}
         >
-          {opt.label}
+          {t(opt.labelKey)}
         </button>
       ))}
     </div>

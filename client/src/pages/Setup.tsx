@@ -1,33 +1,39 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../components/Toast';
 import { getEBReadings, getHouses, getRecords, getRentHistory, getSettings, triggerBackupEmail, updateSettings } from '../api';
+import type { Language } from '../i18n/translations';
 import { todayYM } from '../utils';
 
 export function Setup() {
   const { user } = useAuth();
+  const { t, setLanguage } = useLanguage();
   const { showToast } = useToast();
   const [exporting, setExporting] = useState(false);
   const [emailing, setEmailing] = useState(false);
 
   const [ownerName, setOwnerName] = useState('');
   const [defaultEbRate, setDefaultEbRate] = useState(6.0);
+  const [defaultLanguage, setDefaultLanguage] = useState<Language>('ta');
   const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     getSettings().then((s) => {
       setOwnerName(s.owner_name);
       setDefaultEbRate(s.default_eb_rate);
+      if (s.default_language === 'en' || s.default_language === 'ta') setDefaultLanguage(s.default_language);
     });
   }, []);
 
   const saveSettings = async () => {
     setSavingSettings(true);
     try {
-      await updateSettings({ owner_name: ownerName, default_eb_rate: defaultEbRate });
-      showToast('அமைவுகள் சேமிக்கப்பட்டன', 'ok');
+      await updateSettings({ owner_name: ownerName, default_eb_rate: defaultEbRate, default_language: defaultLanguage });
+      if (!localStorage.getItem('language')) setLanguage(defaultLanguage);
+      showToast(t('settings.saved'), 'ok');
     } catch {
-      showToast('சேமிக்க முடியவில்லை', 'err');
+      showToast(t('common.saveFailed'), 'err');
     } finally {
       setSavingSettings(false);
     }
@@ -37,10 +43,10 @@ export function Setup() {
     setEmailing(true);
     try {
       await triggerBackupEmail();
-      showToast('பேக்அப் மின்னஞ்சலுக்கு அனுப்பப்பட்டது', 'ok');
+      showToast(t('settings.backupSent'), 'ok');
     } catch (err) {
       const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      showToast(message || 'அனுப்ப முடியவில்லை', 'err');
+      showToast(message || t('settings.backupSendFailed'), 'err');
     } finally {
       setEmailing(false);
     }
@@ -91,9 +97,9 @@ export function Setup() {
         ],
         `vaadagai-pro-backup-${todayYM()}.xlsx`
       );
-      showToast('பேக்அப் பதிவிறக்கப்பட்டது', 'ok');
+      showToast(t('settings.backupDownloaded'), 'ok');
     } catch {
-      showToast('பேக்அப் பதிவிறக்க முடியவில்லை', 'err');
+      showToast(t('settings.backupDownloadFailed'), 'err');
     } finally {
       setExporting(false);
     }
@@ -102,29 +108,47 @@ export function Setup() {
   return (
     <div className="mx-auto max-w-lg space-y-4">
       <div className="rounded-xl border border-gray-3 bg-white p-4">
-        <h2 className="font-medium text-navy">Google OAuth</h2>
+        <h2 className="font-medium text-navy">{t('settings.language')}</h2>
+        <div className="mt-3 space-y-2">
+          <label className="block text-sm">
+            {t('settings.defaultLanguage')}
+            <select
+              value={defaultLanguage}
+              onChange={(e) => setDefaultLanguage(e.target.value as Language)}
+              className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+            >
+              <option value="ta">தமிழ் (Tamil)</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <p className="text-xs text-gray">{t('settings.defaultLanguageHint')}</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-3 bg-white p-4">
+        <h2 className="font-medium text-navy">{t('settings.googleOAuth')}</h2>
         <p className="mt-1 text-sm text-gray">
-          Client ID மற்றும் redirect URI சர்வர் / கிளையண்ட் .env கோப்புகளில் அமைக்கப்படுகின்றன.
+          {t('settings.googleOAuthHint')}
         </p>
       </div>
 
       <div className="rounded-xl border border-gray-3 bg-white p-4">
-        <h2 className="font-medium text-navy">உரிமையாளர்</h2>
+        <h2 className="font-medium text-navy">{t('settings.owner')}</h2>
         <p className="mt-1 text-sm text-gray">{user?.name ?? '—'}</p>
         <p className="text-sm text-gray">{user?.email ?? '—'}</p>
 
         <div className="mt-4 space-y-3 border-t border-gray-3 pt-4">
           <label className="block text-sm">
-            உரிமையாளர் பெயர்
+            {t('settings.ownerName')}
             <input
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
-              placeholder="எ.கா. சதீஷ் குமார்"
+              placeholder={t('settings.ownerNamePlaceholder')}
               className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
             />
           </label>
           <label className="block text-sm">
-            இயல்பு EB விலை (₹/யூனிட்)
+            {t('settings.defaultEbRate')}
             <input
               type="number"
               step="0.1"
@@ -139,15 +163,15 @@ export function Setup() {
             disabled={savingSettings}
             className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
           >
-            {savingSettings ? 'சேமிக்கிறது...' : 'சேமி'}
+            {savingSettings ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
 
       <div className="rounded-xl border border-gray-3 bg-white p-4">
-        <h2 className="font-medium text-navy">தரவு பேக்அப்</h2>
+        <h2 className="font-medium text-navy">{t('settings.backupTitle')}</h2>
         <p className="mt-1 text-sm text-gray">
-          வீடுகள், அனைத்து மாத பதிவுகள், EB மற்றும் வாடகை வரலாறு — ஒரு Excel கோப்பாக (தனித்தனி shts) பதிவிறக்கவும்.
+          {t('settings.backupDesc')}
         </p>
         <button
           type="button"
@@ -155,12 +179,12 @@ export function Setup() {
           disabled={exporting}
           className="mt-3 rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
         >
-          {exporting ? 'தயார் செய்கிறது...' : '⬇️ அனைத்து தரவையும் Excel ஆக பதிவிறக்கு'}
+          {exporting ? t('common.downloading') : t('settings.downloadAll')}
         </button>
 
         <div className="mt-4 border-t border-gray-3 pt-4">
           <p className="text-sm text-gray">
-            ஒவ்வொரு நாளும் தானாக ஒரு பேக்அப் மின்னஞ்சல் அனுப்பப்படும் (சர்வரில் SMTP அமைக்கப்பட்டிருந்தால்). இப்போதே ஒரு சோதனை பேக்அப் அனுப்ப:
+            {t('settings.autoBackupDesc')}
           </p>
           <button
             type="button"
@@ -168,7 +192,7 @@ export function Setup() {
             disabled={emailing}
             className="mt-2 rounded-lg border border-gray-3 px-4 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
           >
-            {emailing ? 'அனுப்புகிறது...' : '📧 இப்போது பேக்அப் அனுப்பு'}
+            {emailing ? t('settings.sending') : t('settings.sendBackupNow')}
           </button>
         </div>
       </div>

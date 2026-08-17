@@ -5,6 +5,7 @@ import { getEBReadings, getHouses, getRecord, getRecords } from '../api';
 import type { EBReading, House, RentRecord } from '../types';
 import { todayYM } from '../utils';
 import { useToast } from '../components/Toast';
+import { useLanguage } from '../context/LanguageContext';
 
 interface BulkQueueItem {
   house: House;
@@ -14,6 +15,7 @@ interface BulkQueueItem {
 
 export function Receipt() {
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [houses, setHouses] = useState<House[]>([]);
   const [houseId, setHouseId] = useState<number | null>(null);
   const [month, setMonth] = useState(todayYM());
@@ -61,7 +63,7 @@ export function Receipt() {
       getEBReadings({ year: month.slice(0, 4) }),
     ]);
     if (records.length === 0) {
-      showToast('இந்த மாதத்திற்கு பதிவுகள் இல்லை', 'warn');
+      showToast(t('receipt.noRecordsForMonth'), 'warn');
       return;
     }
     const ebMap: Record<number, EBReading> = {};
@@ -98,7 +100,7 @@ export function Receipt() {
       if (!cancelled) {
         setBulkRunning(false);
         setBulkQueue([]);
-        showToast('அனைத்து ரசீதுகளும் பதிவிறக்கப்பட்டன', 'ok');
+        showToast(t('receipt.allDownloaded'), 'ok');
       }
     })();
 
@@ -112,7 +114,7 @@ export function Receipt() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-sm">
-          வீடு
+          {t('common.house')}
           <select
             value={houseId ?? ''}
             onChange={(e) => setHouseId(+e.target.value)}
@@ -124,11 +126,11 @@ export function Receipt() {
           </select>
         </label>
         <label className="text-sm">
-          மாதம்
+          {t('common.month')}
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="mt-1 block rounded-lg border border-gray-3 px-3 py-2" />
         </label>
         <button type="button" onClick={showSingle} className="rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90">
-          📄 தனி ரசீது
+          {t('receipt.single')}
         </button>
         <button
           type="button"
@@ -136,11 +138,11 @@ export function Receipt() {
           disabled={bulkRunning}
           className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
         >
-          {bulkRunning ? `பதிவிறக்குகிறது... (${bulkQueue.length})` : '🖼️ அனைத்தும் படமாக'}
+          {bulkRunning ? `${t('receipt.downloading')} (${bulkQueue.length})` : t('receipt.bulkImage')}
         </button>
       </div>
 
-      {record === null && <p className="text-sm text-brand-red">இந்த வீடு/மாதத்திற்கு பதிவு இல்லை.</p>}
+      {record === null && <p className="text-sm text-brand-red">{t('receipt.noRecord')}</p>}
 
       {record && selectedHouse && (
         <div className="rounded-xl border border-gray-3 bg-gray-4 p-6">
@@ -149,10 +151,10 @@ export function Receipt() {
           </div>
           <div className="mt-4 flex justify-center gap-2">
             <button type="button" onClick={printSingle} className="rounded-lg border border-gray-3 bg-white px-4 py-2 text-sm hover:bg-gray-4">
-              🖨️ அச்சிடு
+              🖨️ {t('common.print')}
             </button>
             <button type="button" onClick={downloadSingleImage} className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white hover:opacity-90">
-              🖼️ படமாக பதிவிறக்கு
+              {t('receipt.downloadImage')}
             </button>
           </div>
         </div>

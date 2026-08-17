@@ -115,4 +115,5 @@ export interface AuthUser {
 export interface AppSettings {
   owner_name: string;
   default_eb_rate: number;
+  default_language: string;
 }

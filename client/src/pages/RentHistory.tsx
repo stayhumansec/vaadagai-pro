@@ -4,6 +4,7 @@ import { addRentHistory, getHouses, getRentHistory } from '../api';
 import type { House, RentHistoryEntry } from '../types';
 import { fmt, mlabel, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
+import { useLanguage } from '../context/LanguageContext';
 
 interface RevisionForm {
   house_id: number;
@@ -17,6 +18,7 @@ interface RevisionForm {
 
 export function RentHistory() {
   const { showToast } = useToast();
+  const { t, language } = useLanguage();
   const [houses, setHouses] = useState<House[]>([]);
   const [houseFilter, setHouseFilter] = useState<number | 'all'>('all');
   const [entries, setEntries] = useState<RentHistoryEntry[]>([]);
@@ -67,11 +69,11 @@ export function RentHistory() {
     setSaving(true);
     try {
       await addRentHistory(form);
-      showToast('திருத்தம் சேமிக்கப்பட்டது', 'ok');
+      showToast(t('rentHistory.saved'), 'ok');
       setForm(null);
       load();
     } catch {
-      showToast('சேமிக்க முடியவில்லை', 'err');
+      showToast(t('common.saveFailed'), 'err');
     } finally {
       setSaving(false);
     }
@@ -81,13 +83,13 @@ export function RentHistory() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-sm">
-          வீடு
+          {t('common.house')}
           <select
             value={houseFilter}
             onChange={(e) => setHouseFilter(e.target.value === 'all' ? 'all' : +e.target.value)}
             className="mt-1 block rounded-lg border border-gray-3 px-3 py-2"
           >
-            <option value="all">அனைத்தும்</option>
+            <option value="all">{t('common.all')}</option>
             {houses.map((h) => (
               <option key={h.id} value={h.id}>{h.id} — {h.name}</option>
             ))}
@@ -98,7 +100,7 @@ export function RentHistory() {
           onClick={openAdd}
           className="rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90"
         >
-          ➕ திருத்தம் சேர்
+          {t('rentHistory.addRevision')}
         </button>
       </div>
 
@@ -106,13 +108,13 @@ export function RentHistory() {
         <table className="w-full min-w-[700px] text-left text-sm">
           <thead>
             <tr className="border-b border-gray-3 text-gray">
-              <th className="px-3 py-2">வீடு</th>
-              <th className="px-3 py-2">பயன்பாடு மாதம்</th>
-              <th className="px-3 py-2">வாடகை</th>
-              <th className="px-3 py-2">தண்ணீர்</th>
-              <th className="px-3 py-2">பராமரிப்பு</th>
-              <th className="px-3 py-2">EB விலை</th>
-              <th className="px-3 py-2">குறிப்பு</th>
+              <th className="px-3 py-2">{t('common.house')}</th>
+              <th className="px-3 py-2">{t('rentHistory.effectiveFrom')}</th>
+              <th className="px-3 py-2">{t('common.rent')}</th>
+              <th className="px-3 py-2">{t('common.water')}</th>
+              <th className="px-3 py-2">{t('common.maintenance')}</th>
+              <th className="px-3 py-2">{t('common.ebRate')}</th>
+              <th className="px-3 py-2">{t('common.note')}</th>
             </tr>
           </thead>
           <tbody>
@@ -120,9 +122,9 @@ export function RentHistory() {
               <tr key={e.id} className={`border-b border-gray-3 last:border-0 ${currentIds.has(e.id) ? 'bg-brand-green/10' : ''}`}>
                 <td className="px-3 py-2">{e.house_id} — {houseName(e.house_id)}</td>
                 <td className="px-3 py-2">
-                  {mlabel(e.effective_from)}
+                  {mlabel(e.effective_from, language)}
                   {currentIds.has(e.id) && (
-                    <span className="ml-2 rounded-full bg-brand-green px-2 py-0.5 text-[10px] text-white">நடப்பு</span>
+                    <span className="ml-2 rounded-full bg-brand-green px-2 py-0.5 text-[10px] text-white">{t('rentHistory.current')}</span>
                   )}
                 </td>
                 <td className="px-3 py-2">{fmt(e.rent)}</td>
@@ -133,7 +135,7 @@ export function RentHistory() {
               </tr>
             ))}
             {entries.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-gray">திருத்தங்கள் இல்லை.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-gray">{t('rentHistory.noRevisions')}</td></tr>
             )}
           </tbody>
         </table>
@@ -141,12 +143,12 @@ export function RentHistory() {
 
       {form && (
         <Modal
-          title="வாடகை திருத்தம் சேர்"
+          title={t('rentHistory.addTitle')}
           onClose={() => setForm(null)}
           footer={
             <>
               <button type="button" onClick={() => setForm(null)} className="rounded-lg border border-gray-3 px-4 py-2 text-sm">
-                ரத்து
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -154,14 +156,14 @@ export function RentHistory() {
                 disabled={saving}
                 className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
               >
-                {saving ? 'சேமிக்கிறது...' : 'சேமி'}
+                {saving ? t('common.saving') : t('common.save')}
               </button>
             </>
           }
         >
           <div className="space-y-3">
             <label className="block text-sm">
-              வீடு
+              {t('common.house')}
               <select
                 value={form.house_id}
                 onChange={(e) => setForm({ ...form, house_id: +e.target.value })}
@@ -174,7 +176,7 @@ export function RentHistory() {
             </label>
 
             <label className="block text-sm">
-              பயன்பாடு மாதம் (இதிலிருந்து)
+              {t('rentHistory.effectiveFromInput')}
               <input
                 type="month"
                 value={form.effective_from}
@@ -185,15 +187,15 @@ export function RentHistory() {
 
             <div className="grid grid-cols-4 gap-2">
               <label className="text-xs">
-                வாடகை ₹
+                {t('common.rent')} ₹
                 <input type="number" value={form.rent} onChange={(e) => setForm({ ...form, rent: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
               </label>
               <label className="text-xs">
-                தண்ணீர் ₹
+                {t('common.water')} ₹
                 <input type="number" value={form.water} onChange={(e) => setForm({ ...form, water: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
               </label>
               <label className="text-xs">
-                பராமரிப்பு ₹
+                {t('common.maintenance')} ₹
                 <input type="number" value={form.maintenance} onChange={(e) => setForm({ ...form, maintenance: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
               </label>
               <label className="text-xs">
@@ -203,7 +205,7 @@ export function RentHistory() {
             </div>
 
             <label className="block text-sm">
-              குறிப்பு / காரணம்
+              {t('rentHistory.reasonNote')}
               <input
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
@@ -212,7 +214,7 @@ export function RentHistory() {
             </label>
 
             <div className="rounded-lg bg-brand-blue/10 px-3 py-2 text-xs text-brand-blue">
-              இந்த திருத்தம் புதிய மாத பதிவுகளில் மட்டும் பயன்படும். பழைய பதிவுகள் மாறாது.
+              {t('rentHistory.futureOnlyHint')}
             </div>
           </div>
         </Modal>

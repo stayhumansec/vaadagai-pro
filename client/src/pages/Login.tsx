@@ -1,10 +1,12 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
-const FEATURE_CHIPS = ['டாஷ்போர்டு', 'பதிவு', 'ரசீது', 'EB', 'குடியிருப்பு'];
+const FEATURE_CHIP_KEYS = ['login.chipDashboard', 'login.chipEntry', 'login.chipReceipt', 'nav.eb', 'login.chipTenants'];
 
 export function Login() {
   const { user, loading, loginUrl } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
 
   if (loading) return null;
   if (user) return <Navigate to="/" replace />;
@@ -12,14 +14,21 @@ export function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy px-4 text-white">
       <div className="w-full max-w-sm text-center">
+        <button
+          type="button"
+          onClick={() => setLanguage(language === 'ta' ? 'en' : 'ta')}
+          className="mb-4 rounded bg-white/10 px-2.5 py-1 text-xs font-medium hover:bg-white/20"
+        >
+          {language === 'ta' ? 'த / EN' : 'EN / த'}
+        </button>
         <div className="text-5xl">🏠</div>
         <h1 className="mt-3 text-3xl font-semibold">வாடகை Pro</h1>
-        <p className="mt-1 text-white/70">15 வீடுகள் · Tamil Nadu மேலாண்மை</p>
+        <p className="mt-1 text-white/70">{t('login.tagline')}</p>
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {FEATURE_CHIPS.map((chip) => (
-            <span key={chip} className="rounded-full bg-white/10 px-3 py-1 text-xs">
-              {chip}
+          {FEATURE_CHIP_KEYS.map((key) => (
+            <span key={key} className="rounded-full bg-white/10 px-3 py-1 text-xs">
+              {t(key)}
             </span>
           ))}
         </div>
@@ -46,11 +55,11 @@ export function Login() {
               d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.45 2.02.96 4.96l2.99 2.34C4.66 5.17 6.65 3.58 9 3.58z"
             />
           </svg>
-          Google உடன் உள்நுழைக
+          {t('login.signIn')}
         </a>
         {!loginUrl && (
           <p className="mt-3 text-xs text-white/50">
-            Google OAuth உள்ளமைக்கப்படவில்லை. VITE_GOOGLE_CLIENT_ID / VITE_GOOGLE_REDIRECT_URI அமைக்கவும்.
+            {t('login.oauthNotConfigured')}
           </p>
         )}
       </div>
