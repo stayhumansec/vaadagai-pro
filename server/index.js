@@ -5,6 +5,7 @@ const cors = require('cors');
 require('./db');
 const { seed } = require('./seed');
 const authRoutes = require('./routes/auth');
+const housesRoutes = require('./routes/houses');
 
 seed();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/houses', housesRoutes);
 
 app.listen(PORT, () => {
   console.log(`வாடகை Pro server running on port ${PORT}`);
