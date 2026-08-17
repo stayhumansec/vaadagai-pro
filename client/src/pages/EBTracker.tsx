@@ -1,11 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { getEBReadings, getHouses, saveEBReading } from '../api';
+import { getEBReadings, getHouses, saveEBReading, saveEBReadingsBulk } from '../api';
 import type { EBReading, House } from '../types';
 import { fmt, mlabel, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 
 const MONTH_SHORT = ['ஜன', 'பிப்', 'மார்', 'ஏப்', 'மே', 'ஜூன்', 'ஜூலை', 'ஆக', 'செப்', 'அக்', 'நவ', 'டிச'];
+
+const UPLOAD_HEADERS = {
+  house: 'வீடு எண்',
+  month: 'மாதம் (YYYY-MM)',
+  start: 'தொடக்க வாசிப்பு',
+  end: 'முடிவு வாசிப்பு',
+  rate: 'விலை (விருப்பம்)',
+};
 
 export function EBTracker() {
   const { showToast } = useToast();
@@ -17,6 +25,8 @@ export function EBTracker() {
   const [startReading, setStartReading] = useState(0);
   const [endReading, setEndReading] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getHouses().then((list) => {
@@ -64,6 +74,57 @@ export function EBTracker() {
     }
   };
 
+  const downloadTemplate = async () => {
+    const { downloadExcel } = await import('../lib/excel');
+    await downloadExcel(
+      [
+        {
+          name: 'படிவம்',
+          headers: [UPLOAD_HEADERS.house, UPLOAD_HEADERS.month, UPLOAD_HEADERS.start, UPLOAD_HEADERS.end, UPLOAD_HEADERS.rate],
+          rows: [[1, todayYM(), 1000, 1120, '']],
+        },
+        {
+          name: 'வீடுகள்',
+          headers: ['வீடு எண்', 'பெயர்'],
+          rows: houses.map((h) => [h.id, h.name]),
+        },
+      ],
+      'eb-readings-template.xlsx'
+    );
+  };
+
+  const handleUploadFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const { readExcelSheet } = await import('../lib/excel');
+      const rows = await readExcelSheet(file);
+      const parsed = rows.map((r) => ({
+        house_id: Number(r[UPLOAD_HEADERS.house]),
+        month: r[UPLOAD_HEADERS.month],
+        start_reading: Number(r[UPLOAD_HEADERS.start] || 0),
+        end_reading: Number(r[UPLOAD_HEADERS.end] || 0),
+        rate: r[UPLOAD_HEADERS.rate] ? Number(r[UPLOAD_HEADERS.rate]) : undefined,
+      }));
+      if (parsed.length === 0) {
+        showToast('கோப்பில் தரவு இல்லை', 'warn');
+        return;
+      }
+      const result = await saveEBReadingsBulk(parsed);
+      showToast(
+        result.errors.length
+          ? `${result.saved} பதிவுகள் சேமிக்கப்பட்டன, ${result.errors.length} வரிசைகளில் பிழை (வரிசை ${result.errors.map((e) => e.row).join(', ')})`
+          : `${result.saved} EB பதிவுகள் பதிவேற்றப்பட்டன`,
+        result.errors.length ? 'warn' : 'ok'
+      );
+      load();
+    } catch {
+      showToast('கோப்பை படிக்க முடியவில்லை', 'err');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
@@ -88,6 +149,33 @@ export function EBTracker() {
             className="mt-1 block w-24 rounded-lg border border-gray-3 px-3 py-2"
           />
         </label>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={downloadTemplate}
+            className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4"
+          >
+            📥 மாதிரி Excel பதிவிறக்கு
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
+          >
+            {uploading ? 'பதிவேற்றுகிறது...' : '📤 மொத்தமாக பதிவேற்று'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUploadFile(file);
+            }}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-2">
