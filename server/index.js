@@ -6,6 +6,7 @@ require('./db');
 const { seed } = require('./seed');
 const authRoutes = require('./routes/auth');
 const housesRoutes = require('./routes/houses');
+const recordsRoutes = require('./routes/records');
 
 seed();
 
@@ -19,6 +20,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: Date.now() }))
 
 app.use('/api/auth', authRoutes);
 app.use('/api/houses', housesRoutes);
+app.use('/api/records', recordsRoutes);
 
 app.listen(PORT, () => {
   console.log(`வாடகை Pro server running on port ${PORT}`);
