@@ -100,7 +100,8 @@ docker compose -f docker-compose.https.yml up -d --build
 `.github/workflows/ci.yml` includes a `deploy` job that runs the two commands
 above automatically over SSH whenever CI passes on `main`. It's inactive
 until you add three repository secrets — until then it's silently skipped,
-not failing.
+not failing. **Status: active** — the three secrets are configured and this
+merge itself is the first end-to-end verification that the pipeline works.
 
 On GitHub: **repo → Settings → Secrets and variables → Actions → New
 repository secret**, add:
