@@ -9,6 +9,7 @@ import { Ledger } from './pages/Ledger';
 import { Login } from './pages/Login';
 import { Monthly } from './pages/Monthly';
 import { Receipt } from './pages/Receipt';
+import { Tenants } from './pages/Tenants';
 import { Placeholder } from './pages/Placeholder';
 import { Setup } from './pages/Setup';
 
@@ -31,7 +32,7 @@ function App() {
         <Route path="/ledger" element={<Ledger />} />
         <Route path="/receipt" element={<Receipt />} />
         <Route path="/eb" element={<EBTracker />} />
-        <Route path="/tenants" element={<Placeholder title="குடியிருப்பாளர்" />} />
+        <Route path="/tenants" element={<Tenants />} />
         <Route path="/rent-history" element={<Placeholder title="வாடகை வரலாறு" />} />
         <Route path="/report" element={<Placeholder title="அறிக்கை" />} />
         <Route path="/whatsapp" element={<Placeholder title="WhatsApp நினைவூட்டல்" />} />
