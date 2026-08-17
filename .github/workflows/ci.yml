@@ -47,9 +47,7 @@ jobs:
   deploy:
     name: Deploy to production
     needs: [backend, frontend]
-    if: >
-      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
-      secrets.DEPLOY_SSH_KEY != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: SSH in and rebuild
