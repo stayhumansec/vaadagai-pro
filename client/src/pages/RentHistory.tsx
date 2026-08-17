@@ -1,0 +1,222 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Modal } from '../components/Modal';
+import { addRentHistory, getHouses, getRentHistory } from '../api';
+import type { House, RentHistoryEntry } from '../types';
+import { fmt, mlabel, todayYM } from '../utils';
+import { useToast } from '../components/Toast';
+
+interface RevisionForm {
+  house_id: number;
+  effective_from: string;
+  rent: number;
+  water: number;
+  maintenance: number;
+  eb_rate: number;
+  note: string;
+}
+
+export function RentHistory() {
+  const { showToast } = useToast();
+  const [houses, setHouses] = useState<House[]>([]);
+  const [houseFilter, setHouseFilter] = useState<number | 'all'>('all');
+  const [entries, setEntries] = useState<RentHistoryEntry[]>([]);
+  const [form, setForm] = useState<RevisionForm | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    const [houseList, history] = await Promise.all([
+      getHouses(),
+      getRentHistory(houseFilter === 'all' ? undefined : houseFilter),
+    ]);
+    setHouses(houseList);
+    setEntries(history);
+  };
+
+  useEffect(() => { load(); }, [houseFilter]);
+
+  const houseName = (id: number) => houses.find((h) => h.id === id)?.name ?? `வீடு ${id}`;
+
+  const currentIds = useMemo(() => {
+    const month = todayYM();
+    const latestByHouse: Record<number, RentHistoryEntry> = {};
+    entries
+      .filter((e) => e.effective_from <= month)
+      .forEach((e) => {
+        const existing = latestByHouse[e.house_id];
+        if (!existing || e.effective_from > existing.effective_from) latestByHouse[e.house_id] = e;
+      });
+    return new Set(Object.values(latestByHouse).map((e) => e.id));
+  }, [entries]);
+
+  const openAdd = () => {
+    const defaultHouse = houseFilter === 'all' ? houses[0]?.id : houseFilter;
+    const house = houses.find((h) => h.id === defaultHouse);
+    setForm({
+      house_id: defaultHouse ?? 1,
+      effective_from: todayYM(),
+      rent: house?.default_rent ?? 5000,
+      water: house?.water ?? 200,
+      maintenance: house?.maintenance ?? 0,
+      eb_rate: house?.eb_rate ?? 6.0,
+      note: '',
+    });
+  };
+
+  const handleSave = async () => {
+    if (!form) return;
+    setSaving(true);
+    try {
+      await addRentHistory(form);
+      showToast('திருத்தம் சேமிக்கப்பட்டது', 'ok');
+      setForm(null);
+      load();
+    } catch {
+      showToast('சேமிக்க முடியவில்லை', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-sm">
+          வீடு
+          <select
+            value={houseFilter}
+            onChange={(e) => setHouseFilter(e.target.value === 'all' ? 'all' : +e.target.value)}
+            className="mt-1 block rounded-lg border border-gray-3 px-3 py-2"
+          >
+            <option value="all">அனைத்தும்</option>
+            {houses.map((h) => (
+              <option key={h.id} value={h.id}>{h.id} — {h.name}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={openAdd}
+          className="rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90"
+        >
+          ➕ திருத்தம் சேர்
+        </button>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-gray-3 bg-white">
+        <table className="w-full min-w-[700px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-gray-3 text-gray">
+              <th className="px-3 py-2">வீடு</th>
+              <th className="px-3 py-2">பயன்பாடு மாதம்</th>
+              <th className="px-3 py-2">வாடகை</th>
+              <th className="px-3 py-2">தண்ணீர்</th>
+              <th className="px-3 py-2">பராமரிப்பு</th>
+              <th className="px-3 py-2">EB விலை</th>
+              <th className="px-3 py-2">குறிப்பு</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((e) => (
+              <tr key={e.id} className={`border-b border-gray-3 last:border-0 ${currentIds.has(e.id) ? 'bg-brand-green/10' : ''}`}>
+                <td className="px-3 py-2">{e.house_id} — {houseName(e.house_id)}</td>
+                <td className="px-3 py-2">
+                  {mlabel(e.effective_from)}
+                  {currentIds.has(e.id) && (
+                    <span className="ml-2 rounded-full bg-brand-green px-2 py-0.5 text-[10px] text-white">நடப்பு</span>
+                  )}
+                </td>
+                <td className="px-3 py-2">{fmt(e.rent)}</td>
+                <td className="px-3 py-2">{fmt(e.water)}</td>
+                <td className="px-3 py-2">{fmt(e.maintenance)}</td>
+                <td className="px-3 py-2">₹{e.eb_rate}/யூ</td>
+                <td className="px-3 py-2 text-gray">{e.note || '—'}</td>
+              </tr>
+            ))}
+            {entries.length === 0 && (
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-gray">திருத்தங்கள் இல்லை.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {form && (
+        <Modal
+          title="வாடகை திருத்தம் சேர்"
+          onClose={() => setForm(null)}
+          footer={
+            <>
+              <button type="button" onClick={() => setForm(null)} className="rounded-lg border border-gray-3 px-4 py-2 text-sm">
+                ரத்து
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
+              >
+                {saving ? 'சேமிக்கிறது...' : 'சேமி'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <label className="block text-sm">
+              வீடு
+              <select
+                value={form.house_id}
+                onChange={(e) => setForm({ ...form, house_id: +e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+              >
+                {houses.map((h) => (
+                  <option key={h.id} value={h.id}>{h.id} — {h.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm">
+              பயன்பாடு மாதம் (இதிலிருந்து)
+              <input
+                type="month"
+                value={form.effective_from}
+                onChange={(e) => setForm({ ...form, effective_from: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+              />
+            </label>
+
+            <div className="grid grid-cols-4 gap-2">
+              <label className="text-xs">
+                வாடகை ₹
+                <input type="number" value={form.rent} onChange={(e) => setForm({ ...form, rent: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
+              </label>
+              <label className="text-xs">
+                தண்ணீர் ₹
+                <input type="number" value={form.water} onChange={(e) => setForm({ ...form, water: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
+              </label>
+              <label className="text-xs">
+                பராமரிப்பு ₹
+                <input type="number" value={form.maintenance} onChange={(e) => setForm({ ...form, maintenance: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
+              </label>
+              <label className="text-xs">
+                EB ₹/யூ
+                <input type="number" step="0.1" value={form.eb_rate} onChange={(e) => setForm({ ...form, eb_rate: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
+              </label>
+            </div>
+
+            <label className="block text-sm">
+              குறிப்பு / காரணம்
+              <input
+                value={form.note}
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+              />
+            </label>
+
+            <div className="rounded-lg bg-brand-blue/10 px-3 py-2 text-xs text-brand-blue">
+              இந்த திருத்தம் புதிய மாத பதிவுகளில் மட்டும் பயன்படும். பழைய பதிவுகள் மாறாது.
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
