@@ -134,7 +134,7 @@ export function Tenants() {
               key={house.id}
               type="button"
               onClick={() => openEdit(house)}
-              className="rounded-xl border border-gray-3 bg-white p-4 text-left hover:shadow-md"
+              className="rounded-xl border border-gray-3 bg-white p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-navy text-sm font-semibold text-white">

@@ -120,7 +120,7 @@ export function Report() {
           {byHouse.map((h) => {
             const eff = h.billed > 0 ? Math.round((h.collected / h.billed) * 100) : 0;
             return (
-              <div key={h.house_id} className="rounded-xl border border-gray-3 bg-white p-3">
+              <div key={h.house_id} className="rounded-xl border border-gray-3 bg-white p-3 transition-shadow duration-150 hover:shadow-sm">
                 <p className="font-medium text-navy">{h.house_id} — {h.name}</p>
                 <p className="text-xs text-gray">{h.months} மாதங்கள்</p>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-3">

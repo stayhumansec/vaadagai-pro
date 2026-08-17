@@ -94,7 +94,7 @@ export function Layout() {
       )}
 
       <main className="min-h-screen pb-16 pt-[52px] md:ml-[220px] md:pb-4">
-        <div className="p-4">
+        <div key={location.pathname} className="animate-fade-in p-4">
           <Outlet />
         </div>
       </main>
