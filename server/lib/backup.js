@@ -33,7 +33,7 @@ async function buildBackupWorkbook() {
   addSheet(
     'Records',
     ['வீடு', 'பெயர்', 'மாதம்', 'வாடகை', 'தண்ணீர்', 'EB', 'பராமரிப்பு', 'முன் பாக்கி', 'மொத்தம்', 'நிலை', 'வசூல்', 'இருப்பு', 'குறிப்பு'],
-    records.map((r) => [r.house_id, houseName(r.house_id), r.month, r.rent, r.water, r.eb, r.other, r.mun_bakki, r.total, r.pay_status, r.received, r.balance, r.note])
+    records.map((r) => [r.house_id, houseName(r.house_id), r.month, r.rent, r.water, r.eb, r.maintenance, r.mun_bakki, r.total, r.pay_status, r.received, r.balance, r.note])
   );
   addSheet(
     'EB Readings',

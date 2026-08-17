@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { ReceiptCard } from '../components/ReceiptCard';
-import { getHouses, getRecord, getRecords } from '../api';
-import type { House, RentRecord } from '../types';
+import { getEBReadings, getHouses, getRecord, getRecords } from '../api';
+import type { EBReading, House, RentRecord } from '../types';
 import { todayYM } from '../utils';
 import { useToast } from '../components/Toast';
+
+interface BulkQueueItem {
+  house: House;
+  record: RentRecord;
+  ebReading: EBReading | null;
+}
 
 export function Receipt() {
   const { showToast } = useToast();
@@ -12,7 +18,8 @@ export function Receipt() {
   const [houseId, setHouseId] = useState<number | null>(null);
   const [month, setMonth] = useState(todayYM());
   const [record, setRecord] = useState<RentRecord | null | undefined>(undefined);
-  const [bulkQueue, setBulkQueue] = useState<{ house: House; record: RentRecord }[]>([]);
+  const [ebReading, setEbReading] = useState<EBReading | null>(null);
+  const [bulkQueue, setBulkQueue] = useState<BulkQueueItem[]>([]);
   const [bulkRunning, setBulkRunning] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
   const bulkRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -29,8 +36,11 @@ export function Receipt() {
     try {
       const r = await getRecord(houseId, month);
       setRecord(r);
+      const readings = await getEBReadings({ house_id: houseId, year: month.slice(0, 4) });
+      setEbReading(readings.find((e) => e.month === month) ?? null);
     } catch {
       setRecord(null);
+      setEbReading(null);
     }
   };
 
@@ -46,14 +56,22 @@ export function Receipt() {
   const printSingle = () => window.print();
 
   const bulkDownload = async () => {
-    const records = await getRecords({ month_from: month, month_to: month });
+    const [records, ebList] = await Promise.all([
+      getRecords({ month_from: month, month_to: month }),
+      getEBReadings({ year: month.slice(0, 4) }),
+    ]);
     if (records.length === 0) {
       showToast('இந்த மாதத்திற்கு பதிவுகள் இல்லை', 'warn');
       return;
     }
-    const queue = records
-      .map((r) => ({ house: houses.find((h) => h.id === r.house_id), record: r }))
-      .filter((x): x is { house: House; record: RentRecord } => !!x.house);
+    const ebMap: Record<number, EBReading> = {};
+    ebList.filter((e) => e.month === month).forEach((e) => { ebMap[e.house_id] = e; });
+    const queue: BulkQueueItem[] = [];
+    for (const r of records) {
+      const house = houses.find((h) => h.id === r.house_id);
+      if (!house) continue;
+      queue.push({ house, record: r, ebReading: ebMap[r.house_id] ?? null });
+    }
 
     bulkRefs.current = [];
     setBulkQueue(queue);
@@ -127,7 +145,7 @@ export function Receipt() {
       {record && selectedHouse && (
         <div className="rounded-xl border border-gray-3 bg-gray-4 p-6">
           <div className="flex justify-center">
-            <ReceiptCard ref={receiptRef} house={selectedHouse} record={record} />
+            <ReceiptCard ref={receiptRef} house={selectedHouse} record={record} ebReading={ebReading} />
           </div>
           <div className="mt-4 flex justify-center gap-2">
             <button type="button" onClick={printSingle} className="rounded-lg border border-gray-3 bg-white px-4 py-2 text-sm hover:bg-gray-4">
@@ -147,6 +165,7 @@ export function Receipt() {
             ref={(el) => { bulkRefs.current[i] = el; }}
             house={item.house}
             record={item.record}
+            ebReading={item.ebReading}
           />
         ))}
       </div>

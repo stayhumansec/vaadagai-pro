@@ -8,7 +8,7 @@ interface BulkRow {
   house: House;
   rent: number;
   water: number;
-  other: number;
+  maintenance: number;
   eb: number;
   mun_bakki: number;
   pay_status: PayStatus;
@@ -49,7 +49,7 @@ export function Bulk() {
             house,
             rent: existing?.rent ?? eff.rent,
             water: existing?.water ?? eff.water,
-            other: existing?.other ?? eff.maintenance,
+            maintenance: existing?.maintenance ?? eff.maintenance,
             eb: existing?.eb ?? ebMap[house.id]?.amount ?? 0,
             mun_bakki: existing?.mun_bakki ?? prevMap[house.id]?.balance ?? 0,
             pay_status: existing?.pay_status ?? 'none',
@@ -68,7 +68,7 @@ export function Bulk() {
     setRows((prev) => prev.map((r) => (r.house.id === houseId ? { ...r, ...patch } : r)));
   };
 
-  const rowTotal = (r: BulkRow) => r.rent + r.water + r.eb + r.other + r.mun_bakki;
+  const rowTotal = (r: BulkRow) => r.rent + r.water + r.eb + r.maintenance + r.mun_bakki;
 
   const handleSaveAll = async () => {
     setSaving(true);
@@ -80,7 +80,7 @@ export function Bulk() {
           rent: r.rent,
           water: r.water,
           eb: r.eb,
-          other: r.other,
+          maintenance: r.maintenance,
           pay_status: r.pay_status,
           received: r.pay_status === 'full' ? rowTotal(r) : r.pay_status === 'none' ? 0 : r.received,
         }))

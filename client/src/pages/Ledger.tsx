@@ -43,11 +43,11 @@ export function Ledger() {
   );
 
   const downloadXlsx = async () => {
-    const headers = ['வீடு', 'பெயர்', 'மாதம்', 'வாடகை', 'தண்ணீர்', 'EB', 'முன் பாக்கி', 'மொத்தம்', 'நிலை', 'வசூல்', 'இருப்பு'];
+    const headers = ['வீடு', 'பெயர்', 'மாதம்', 'வாடகை', 'தண்ணீர்', 'EB', 'பராமரிப்பு', 'முன் பாக்கி', 'மொத்தம்', 'நிலை', 'வசூல்', 'இருப்பு'];
     const rows = records.map((r) => [
-      r.house_id, houseName(r.house_id), r.month, r.rent, r.water, r.eb, r.mun_bakki, r.total, r.pay_status, r.received, r.balance,
+      r.house_id, houseName(r.house_id), r.month, r.rent, r.water, r.eb, r.maintenance, r.mun_bakki, r.total, r.pay_status, r.received, r.balance,
     ]);
-    rows.push(['', '', '', '', '', '', '', totals.total, '', totals.received, totals.balance]);
+    rows.push(['', '', '', '', '', '', '', '', totals.total, '', totals.received, totals.balance]);
     try {
       const { downloadExcel } = await import('../lib/excel');
       await downloadExcel([{ name: 'Ledger', headers, rows }], `ledger_${monthFrom}_${monthTo}.xlsx`);
@@ -130,6 +130,7 @@ export function Ledger() {
               <th className="px-3 py-2">வாடகை</th>
               <th className="px-3 py-2">தண்ணீர்</th>
               <th className="px-3 py-2">EB</th>
+              <th className="px-3 py-2">பராமரிப்பு</th>
               <th className="px-3 py-2">முன் பாக்கி</th>
               <th className="px-3 py-2">மொத்தம்</th>
               <th className="px-3 py-2">நிலை</th>
@@ -145,6 +146,7 @@ export function Ledger() {
                 <td className="px-3 py-2">{fmt(r.rent)}</td>
                 <td className="px-3 py-2">{fmt(r.water)}</td>
                 <td className="px-3 py-2">{fmt(r.eb)}</td>
+                <td className="px-3 py-2">{fmt(r.maintenance)}</td>
                 <td className="px-3 py-2">{fmt(r.mun_bakki)}</td>
                 <td className="px-3 py-2 font-medium">{fmt(r.total)}</td>
                 <td className="px-3 py-2">{r.pay_status}</td>
@@ -159,7 +161,7 @@ export function Ledger() {
           {records.length > 0 && (
             <tfoot>
               <tr className="border-t-2 border-gray-3 font-semibold">
-                <td className="px-3 py-2" colSpan={6}>மொத்தம்</td>
+                <td className="px-3 py-2" colSpan={7}>மொத்தம்</td>
                 <td className="px-3 py-2">{fmt(totals.total)}</td>
                 <td className="px-3 py-2"></td>
                 <td className="px-3 py-2">{fmt(totals.received)}</td>

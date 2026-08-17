@@ -25,7 +25,7 @@ export interface RentRecord {
   rent: number;
   water: number;
   eb: number;
-  other: number;
+  maintenance: number;
   mun_bakki: number;
   total: number;
   pay_status: PayStatus;

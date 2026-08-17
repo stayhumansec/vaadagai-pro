@@ -5,11 +5,11 @@ const { prevYM, getEffectiveRent } = require('../lib/rent');
 
 const router = express.Router();
 
-function upsertRecord({ house_id, month, rent = 0, water = 0, eb = 0, other = 0, pay_status = 'none', received = 0, note = '' }) {
+function upsertRecord({ house_id, month, rent = 0, water = 0, eb = 0, maintenance = 0, pay_status = 'none', received = 0, note = '' }) {
   const prevMonth = prevYM(month);
   const prevRecord = db.prepare('SELECT balance FROM records WHERE house_id = ? AND month = ?').get(house_id, prevMonth);
   const mun_bakki = prevRecord?.balance ?? 0;
-  const total = rent + water + eb + other + mun_bakki;
+  const total = rent + water + eb + maintenance + mun_bakki;
   const balance = total - received;
 
   const existing = db.prepare('SELECT id FROM records WHERE house_id = ? AND month = ?').get(house_id, month);
@@ -17,17 +17,17 @@ function upsertRecord({ house_id, month, rent = 0, water = 0, eb = 0, other = 0,
   if (existing) {
     db.prepare(`
       UPDATE records SET
-        rent = ?, water = ?, eb = ?, other = ?, mun_bakki = ?, total = ?,
+        rent = ?, water = ?, eb = ?, maintenance = ?, mun_bakki = ?, total = ?,
         pay_status = ?, received = ?, balance = ?, note = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(rent, water, eb, other, mun_bakki, total, pay_status, received, balance, note, existing.id);
+    `).run(rent, water, eb, maintenance, mun_bakki, total, pay_status, received, balance, note, existing.id);
     return db.prepare('SELECT * FROM records WHERE id = ?').get(existing.id);
   }
 
   const info = db.prepare(`
-    INSERT INTO records (house_id, month, rent, water, eb, other, mun_bakki, total, pay_status, received, balance, note)
+    INSERT INTO records (house_id, month, rent, water, eb, maintenance, mun_bakki, total, pay_status, received, balance, note)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(house_id, month, rent, water, eb, other, mun_bakki, total, pay_status, received, balance, note);
+  `).run(house_id, month, rent, water, eb, maintenance, mun_bakki, total, pay_status, received, balance, note);
   return db.prepare('SELECT * FROM records WHERE id = ?').get(info.lastInsertRowid);
 }
 
@@ -80,12 +80,15 @@ router.post('/auto-generate', auth, (req, res) => {
   const skipped = [];
 
   const insert = db.prepare(`
-    INSERT INTO records (house_id, month, rent, water, eb, other, mun_bakki, total, pay_status, received, balance, note)
+    INSERT INTO records (house_id, month, rent, water, eb, maintenance, mun_bakki, total, pay_status, received, balance, note)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'none', 0, ?, 'Auto generated')
   `);
 
+  const houseIds = Array.isArray(req.body.house_ids) ? new Set(req.body.house_ids) : null;
+
   const run = db.transaction(() => {
     for (const house of activeHouses) {
+      if (houseIds && !houseIds.has(house.id)) continue;
       if (existingIds.has(house.id)) { skipped.push(house.id); continue; }
 
       const { rent, water, maintenance } = getEffectiveRent(house.id, month);
