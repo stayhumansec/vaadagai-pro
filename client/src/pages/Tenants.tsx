@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../components/Modal';
-import { addNewTenant, getHouses, getRecords, getRentHistory, getTenantHistory, updateHouse, uploadHouseProof } from '../api';
+import { addNewTenant, createHouse, getHouses, getRecords, getRentHistory, getTenantHistory, updateHouse, uploadHouseProof } from '../api';
 import type { House, HouseStatus, RentHistoryEntry, RentRecord, TenantHistoryEntry } from '../types';
 import { fmt, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
@@ -71,6 +71,7 @@ export function Tenants() {
   const [newTenantMode, setNewTenantMode] = useState(false);
   const [newTenantForm, setNewTenantForm] = useState<NewTenantForm>(emptyNewTenantForm());
   const [startingNewTenant, setStartingNewTenant] = useState(false);
+  const [addingHouse, setAddingHouse] = useState(false);
 
   const load = async () => {
     const [houseList, recordList] = await Promise.all([getHouses(), getRecords({})]);
@@ -125,6 +126,21 @@ export function Tenants() {
     }
   };
 
+  const handleAddHouse = async () => {
+    setAddingHouse(true);
+    try {
+      const newHouse = await createHouse({});
+      showToast(t('tenants.houseAdded'), 'ok');
+      const updatedHouses = await getHouses();
+      setHouses(updatedHouses);
+      openEdit(newHouse);
+    } catch {
+      showToast(t('tenants.addHouseFailed'), 'err');
+    } finally {
+      setAddingHouse(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!editing) return;
     setSaving(true);
@@ -163,10 +179,11 @@ export function Tenants() {
         <span className="rounded-full bg-gray-3 px-3 py-1 text-sm text-gray">{t('common.inactive')} {inactiveCount}</span>
         <button
           type="button"
-          onClick={() => houses[0] && openEdit(houses[0])}
-          className="ml-auto rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90"
+          onClick={handleAddHouse}
+          disabled={addingHouse}
+          className="ml-auto rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
         >
-          {t('tenants.addTenant')}
+          {addingHouse ? t('common.saving') : t('tenants.addHouse')}
         </button>
       </div>
 

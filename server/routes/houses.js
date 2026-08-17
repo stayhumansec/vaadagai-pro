@@ -39,6 +39,27 @@ router.get('/', auth, (req, res) => {
   res.json(houses);
 });
 
+router.post('/', auth, (req, res) => {
+  const maxId = db.prepare('SELECT MAX(id) AS maxId FROM houses').get().maxId || 0;
+  const newId = maxId + 1;
+  const {
+    name, phone, default_rent = 5000, water = 200, maintenance = 0, members = 1,
+    eb_rate = 6.0, proof_type = 'Aadhaar', proof_number, move_in_date,
+  } = req.body;
+
+  db.prepare(`
+    INSERT INTO houses (
+      id, name, phone, default_rent, water, maintenance, members, eb_rate,
+      proof_type, proof_number, move_in_date, move_out_date, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'Active')
+  `).run(
+    newId, name || `வீடு ${newId}`, phone || null, default_rent, water, maintenance,
+    members, eb_rate, proof_type, proof_number || null, move_in_date || null
+  );
+
+  res.json(db.prepare('SELECT * FROM houses WHERE id = ?').get(newId));
+});
+
 router.get('/:id', auth, (req, res) => {
   const house = db.prepare('SELECT * FROM houses WHERE id = ?').get(req.params.id);
   if (!house) return res.status(404).json({ error: 'House not found' });

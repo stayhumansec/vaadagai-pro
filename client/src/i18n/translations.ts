@@ -134,7 +134,9 @@ export const translations: Dict = {
   'eb.monthFormat': { ta: 'மாதம் (YYYY-MM)', en: 'Month (YYYY-MM)' },
 
   // Tenants
-  'tenants.addTenant': { ta: '➕ குடியிருப்பாளர் சேர்', en: '➕ Add Tenant' },
+  'tenants.addHouse': { ta: '➕ புதிய வீடு சேர்', en: '➕ Add House' },
+  'tenants.houseAdded': { ta: 'புதிய வீடு சேர்க்கப்பட்டது', en: 'New house added' },
+  'tenants.addHouseFailed': { ta: 'வீடு சேர்க்க முடியவில்லை', en: 'Could not add house' },
   'tenants.members': { ta: 'உறுப்பினர்கள்', en: 'Members' },
   'tenants.moveInDate': { ta: 'குடி வந்த தேதி', en: 'Move-in Date' },
   'tenants.moveOutDate': { ta: 'குடி வெளியேறிய தேதி', en: 'Move-out Date' },
