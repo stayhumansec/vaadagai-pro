@@ -2,26 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Tamil', 'Segoe UI', system-ui, sans-serif;
+  background: radial-gradient(1200px 600px at 100% -10%, rgba(59, 130, 246, 0.05), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(139, 92, 246, 0.04), transparent 55%),
+    #f8fafc;
+}
+
+/* Slim, premium scrollbar (Chromium/Safari) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.3);
+  background-clip: padding-box;
 }
 
 button, a {
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+  transition: background-color 200ms cubic-bezier(0.16, 1, 0.3, 1), color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 200ms ease, transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button:active {
+  transform: scale(0.97);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(10px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 260ms ease-out;
+  animation: fadeIn 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-overlay-in {
+  animation: overlayIn 220ms ease-out;
+}
+.animate-modal-in {
+  animation: modalIn 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Fixed-angle 3D hover tilt for cards -- cheap, no JS, works great for repeated lists */
+.tilt-hover {
+  transform-style: preserve-3d;
+  transition: transform 380ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 380ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.tilt-hover:hover {
+  transform: perspective(800px) rotateX(3deg) rotateY(-3deg) translateY(-4px) scale(1.015);
+}
+
+/* Scroll-reveal: fades/rises into place once visible */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 620ms cubic-bezier(0.16, 1, 0.3, 1), transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-in {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-fade-in,
+  .animate-floaty,
+  .animate-overlay-in,
+  .animate-modal-in {
     animation: none;
+  }
+  .tilt-hover,
+  .tilt-hover:hover {
+    transform: none;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  button:active {
+    transform: none;
   }
 }

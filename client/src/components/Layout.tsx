@@ -29,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dueCount, setDueCount] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const location = useLocation();
@@ -42,9 +43,19 @@ export function Layout() {
     getDashboardSummary().then((s) => setDueCount(s.dueCount)).catch(() => {});
   }, [location.pathname]);
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-4">
-      <header className="fixed inset-x-0 top-0 z-30 flex h-[52px] items-center gap-3 bg-navy px-4 text-white">
+      <header
+        className={`fixed inset-x-0 top-0 z-30 flex h-[52px] items-center gap-3 bg-gradient-to-r from-navy via-navy to-[#22224a] px-4 text-white transition-shadow duration-300 ${
+          scrolled ? 'shadow-elevated' : ''
+        }`}
+      >
         <button
           type="button"
           className="text-xl md:hidden"
@@ -72,7 +83,7 @@ export function Layout() {
       </header>
 
       <aside
-        className={`fixed inset-y-0 left-0 z-20 w-[220px] transform bg-navy pt-[52px] text-white transition-transform md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-20 w-[220px] transform bg-gradient-to-b from-navy to-[#15152a] pt-[52px] text-white transition-transform duration-300 ease-premium md:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -84,8 +95,10 @@ export function Layout() {
               end={item.path === '/'}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                  isActive ? 'bg-brand-blue text-white' : 'text-white/80 hover:bg-white/10'
+                `flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all duration-200 ease-premium ${
+                  isActive
+                    ? 'bg-gradient-to-r from-brand-blue to-brand-blue/80 text-white shadow-glow'
+                    : 'text-white/80 hover:translate-x-0.5 hover:bg-white/10'
                 }`
               }
             >
