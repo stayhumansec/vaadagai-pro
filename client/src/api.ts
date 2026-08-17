@@ -44,6 +44,7 @@ export const getMe = () => api.get<{ user: AuthUser }>('/auth/me').then((r) => r
 // Houses
 export const getHouses = () => api.get<House[]>('/houses').then((r) => r.data);
 export const getHouse = (id: number) => api.get<House>(`/houses/${id}`).then((r) => r.data);
+export const createHouse = (data: Partial<House>) => api.post<House>('/houses', data).then((r) => r.data);
 export const updateHouse = (id: number, data: Partial<House>) =>
   api.put<House>(`/houses/${id}`, data).then((r) => r.data);
 export const getTenantHistory = (id: number) =>
