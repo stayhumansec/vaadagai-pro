@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      PORT: 3000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      DB_PATH: /app/data/vaadagai.db
+      UPLOAD_PATH: /app/uploads/
+    volumes:
+      - vaadagai-data:/app/data
+      - vaadagai-uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  vaadagai-data:
+  vaadagai-uploads:
