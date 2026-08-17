@@ -1,21 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import { getHouses, getRecords } from '../api';
+import { deleteRecord, getHouses, getRecords, getSettings } from '../api';
 import type { House, RentRecord } from '../types';
 import { fmt, mlabel, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 
 export function Ledger() {
   const { showToast } = useToast();
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const [houses, setHouses] = useState<House[]>([]);
   const [houseFilter, setHouseFilter] = useState<number | 'all'>('all');
   const [monthFrom, setMonthFrom] = useState(todayYM());
   const [monthTo, setMonthTo] = useState(todayYM());
   const [records, setRecords] = useState<RentRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user?.email) return;
+    getSettings()
+      .then((s) => setIsOwner(!!s.owner_email && s.owner_email === user.email.toLowerCase()))
+      .catch(() => {});
+  }, [user?.email]);
 
   const houseName = (id: number) => houses.find((h) => h.id === id)?.name ?? `வீடு ${id}`;
 
@@ -55,6 +66,20 @@ export function Ledger() {
       await downloadExcel([{ name: 'Ledger', headers, rows }], `ledger_${monthFrom}_${monthTo}.xlsx`);
     } catch {
       showToast(t('ledger.excelDownloadFailed'), 'err');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm(t('ledger.deleteConfirm'))) return;
+    setDeletingId(id);
+    try {
+      await deleteRecord(id);
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      showToast(t('ledger.deleted'), 'ok');
+    } catch {
+      showToast(t('ledger.deleteFailed'), 'err');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -138,6 +163,7 @@ export function Ledger() {
               <th className="px-3 py-2">{t('common.status')}</th>
               <th className="px-3 py-2">{t('common.collected')}</th>
               <th className="px-3 py-2">{t('common.balance')}</th>
+              {isOwner && <th className="px-3 py-2"></th>}
             </tr>
           </thead>
           <tbody>
@@ -154,10 +180,22 @@ export function Ledger() {
                 <td className="px-3 py-2">{r.pay_status}</td>
                 <td className="px-3 py-2">{fmt(r.received)}</td>
                 <td className="px-3 py-2 text-brand-red">{fmt(r.balance)}</td>
+                {isOwner && (
+                  <td className="px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(r.id)}
+                      disabled={deletingId === r.id}
+                      className="rounded border border-brand-red/40 px-2 py-1 text-xs text-brand-red hover:bg-brand-red/10 disabled:opacity-60"
+                    >
+                      🗑️ {t('ledger.delete')}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
             {!loading && records.length === 0 && (
-              <tr><td colSpan={11} className="px-3 py-6 text-center text-gray">{t('common.noRecords')}</td></tr>
+              <tr><td colSpan={isOwner ? 12 : 11} className="px-3 py-6 text-center text-gray">{t('common.noRecords')}</td></tr>
             )}
           </tbody>
           {records.length > 0 && (
@@ -168,6 +206,7 @@ export function Ledger() {
                 <td className="px-3 py-2"></td>
                 <td className="px-3 py-2">{fmt(totals.received)}</td>
                 <td className="px-3 py-2 text-brand-red">{fmt(totals.balance)}</td>
+                {isOwner && <td className="px-3 py-2"></td>}
               </tr>
             </tfoot>
           )}
