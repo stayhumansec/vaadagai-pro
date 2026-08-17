@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
-import { getEBReadings, getHouses, getRecords, getRentHistory, triggerBackupEmail } from '../api';
+import { getEBReadings, getHouses, getRecords, getRentHistory, getSettings, triggerBackupEmail, updateSettings } from '../api';
 import { todayYM } from '../utils';
 
 export function Setup() {
@@ -9,6 +9,29 @@ export function Setup() {
   const { showToast } = useToast();
   const [exporting, setExporting] = useState(false);
   const [emailing, setEmailing] = useState(false);
+
+  const [ownerName, setOwnerName] = useState('');
+  const [defaultEbRate, setDefaultEbRate] = useState(6.0);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  useEffect(() => {
+    getSettings().then((s) => {
+      setOwnerName(s.owner_name);
+      setDefaultEbRate(s.default_eb_rate);
+    });
+  }, []);
+
+  const saveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      await updateSettings({ owner_name: ownerName, default_eb_rate: defaultEbRate });
+      showToast('அமைவுகள் சேமிக்கப்பட்டன', 'ok');
+    } catch {
+      showToast('சேமிக்க முடியவில்லை', 'err');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const sendBackupEmail = async () => {
     setEmailing(true);
@@ -89,6 +112,36 @@ export function Setup() {
         <h2 className="font-medium text-navy">உரிமையாளர்</h2>
         <p className="mt-1 text-sm text-gray">{user?.name ?? '—'}</p>
         <p className="text-sm text-gray">{user?.email ?? '—'}</p>
+
+        <div className="mt-4 space-y-3 border-t border-gray-3 pt-4">
+          <label className="block text-sm">
+            உரிமையாளர் பெயர்
+            <input
+              value={ownerName}
+              onChange={(e) => setOwnerName(e.target.value)}
+              placeholder="எ.கா. சதீஷ் குமார்"
+              className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+            />
+          </label>
+          <label className="block text-sm">
+            இயல்பு EB விலை (₹/யூனிட்)
+            <input
+              type="number"
+              step="0.1"
+              value={defaultEbRate}
+              onChange={(e) => setDefaultEbRate(+e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={saveSettings}
+            disabled={savingSettings}
+            className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
+          >
+            {savingSettings ? 'சேமிக்கிறது...' : 'சேமி'}
+          </button>
+        </div>
       </div>
 
       <div className="rounded-xl border border-gray-3 bg-white p-4">

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getDashboardSummary } from '../api';
 
 interface NavItem {
   path: string;
@@ -31,8 +32,13 @@ function currentTitle(pathname: string): string {
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dueCount, setDueCount] = useState(0);
   const { user, logout } = useAuth();
   const location = useLocation();
+
+  useEffect(() => {
+    getDashboardSummary().then((s) => setDueCount(s.dueCount)).catch(() => {});
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-gray-4">
@@ -74,7 +80,10 @@ export function Layout() {
               }
             >
               <span>{item.icon}</span>
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {item.path === '/whatsapp' && dueCount > 0 && (
+                <span className="rounded-full bg-brand-red px-1.5 py-0.5 text-[10px] font-semibold text-white">{dueCount}</span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -100,7 +109,14 @@ export function Layout() {
               `flex flex-1 flex-col items-center justify-center text-xs ${isActive ? 'text-brand-blue' : 'text-gray'}`
             }
           >
-            <span className="text-base">{item.icon}</span>
+            <span className="relative text-base">
+              {item.icon}
+              {item.path === '/whatsapp' && dueCount > 0 && (
+                <span className="absolute -right-2 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand-red text-[8px] font-semibold text-white">
+                  {dueCount > 9 ? '9+' : dueCount}
+                </span>
+              )}
+            </span>
             <span className="whitespace-nowrap">{item.mobileLabel ?? item.label}</span>
           </NavLink>
         ))}

@@ -98,3 +98,8 @@ export interface AuthUser {
   email: string;
   name: string;
 }
+
+export interface AppSettings {
+  owner_name: string;
+  default_eb_rate: number;
+}

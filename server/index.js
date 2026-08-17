@@ -14,6 +14,7 @@ const ebRoutes = require('./routes/eb');
 const rentHistoryRoutes = require('./routes/rentHistory');
 const reportsRoutes = require('./routes/reports');
 const backupRoutes = require('./routes/backup');
+const settingsRoutes = require('./routes/settings');
 
 seed();
 
@@ -32,6 +33,7 @@ app.use('/api/eb', ebRoutes);
 app.use('/api/rent-history', rentHistoryRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/backup', backupRoutes);
+app.use('/api/settings', settingsRoutes);
 
 const backupCron = process.env.BACKUP_CRON || '0 2 * * *';
 if (cron.validate(backupCron)) {

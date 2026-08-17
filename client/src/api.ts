@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type {
+  AppSettings,
   AuthUser,
   AutoGenerateResult,
   DashboardSummary,
@@ -86,3 +87,7 @@ export const getDashboardSummary = (month?: string) =>
 
 // Backup
 export const triggerBackupEmail = () => api.post<{ sent: boolean }>('/backup/run').then((r) => r.data);
+
+// Settings
+export const getSettings = () => api.get<AppSettings>('/settings').then((r) => r.data);
+export const updateSettings = (data: Partial<AppSettings>) => api.put<AppSettings>('/settings', data).then((r) => r.data);
