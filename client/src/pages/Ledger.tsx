@@ -4,9 +4,11 @@ import { getHouses, getRecords } from '../api';
 import type { House, RentRecord } from '../types';
 import { fmt, mlabel, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
+import { useLanguage } from '../context/LanguageContext';
 
 export function Ledger() {
   const { showToast } = useToast();
+  const { t, language } = useLanguage();
   const [houses, setHouses] = useState<House[]>([]);
   const [houseFilter, setHouseFilter] = useState<number | 'all'>('all');
   const [monthFrom, setMonthFrom] = useState(todayYM());
@@ -52,7 +54,7 @@ export function Ledger() {
       const { downloadExcel } = await import('../lib/excel');
       await downloadExcel([{ name: 'Ledger', headers, rows }], `ledger_${monthFrom}_${monthTo}.xlsx`);
     } catch {
-      showToast('Excel பதிவிறக்க முடியவில்லை', 'err');
+      showToast(t('ledger.excelDownloadFailed'), 'err');
     }
   };
 
@@ -65,7 +67,7 @@ export function Ledger() {
       a.download = `ledger_${monthFrom}_${monthTo}.png`;
       a.click();
     } catch {
-      showToast('படமாக பதிவிறக்க முடியவில்லை', 'err');
+      showToast(t('ledger.imageDownloadFailed'), 'err');
     }
   };
 
@@ -73,50 +75,50 @@ export function Ledger() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-sm">
-          வீடு
+          {t('common.house')}
           <select
             value={houseFilter}
             onChange={(e) => setHouseFilter(e.target.value === 'all' ? 'all' : +e.target.value)}
             className="mt-1 block rounded-lg border border-gray-3 px-3 py-2"
           >
-            <option value="all">அனைத்தும்</option>
+            <option value="all">{t('common.all')}</option>
             {houses.map((h) => (
               <option key={h.id} value={h.id}>{h.id} — {h.name}</option>
             ))}
           </select>
         </label>
         <label className="text-sm">
-          தொடக்க மாதம்
+          {t('ledger.from')}
           <input type="month" value={monthFrom} onChange={(e) => setMonthFrom(e.target.value)} className="mt-1 block rounded-lg border border-gray-3 px-3 py-2" />
         </label>
         <label className="text-sm">
-          முடிவு மாதம்
+          {t('ledger.to')}
           <input type="month" value={monthTo} onChange={(e) => setMonthTo(e.target.value)} className="mt-1 block rounded-lg border border-gray-3 px-3 py-2" />
         </label>
         <button type="button" onClick={load} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
-          ஏற்று
+          {t('common.load')}
         </button>
         <div className="ml-auto flex gap-2">
           <button type="button" onClick={downloadXlsx} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
-            ⬇️ Excel
+            ⬇️ {t('common.excel')}
           </button>
           <button type="button" onClick={downloadImage} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
-            🖼️ படம்
+            🖼️ {t('common.image')}
           </button>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
         <div className="min-w-[120px] rounded-xl border border-gray-3 bg-white p-4">
-          <p className="text-xs text-gray">மொத்தம்</p>
+          <p className="text-xs text-gray">{t('common.total')}</p>
           <p className="mt-1 text-xl font-semibold text-navy">{fmt(totals.total)}</p>
         </div>
         <div className="min-w-[120px] rounded-xl border border-gray-3 bg-white p-4">
-          <p className="text-xs text-gray">வசூல்</p>
+          <p className="text-xs text-gray">{t('common.collected')}</p>
           <p className="mt-1 text-xl font-semibold text-brand-green">{fmt(totals.received)}</p>
         </div>
         <div className="min-w-[120px] rounded-xl border border-gray-3 bg-white p-4">
-          <p className="text-xs text-gray">நிலுவை</p>
+          <p className="text-xs text-gray">{t('common.balance')}</p>
           <p className="mt-1 text-xl font-semibold text-brand-red">{fmt(totals.balance)}</p>
         </div>
       </div>
@@ -125,24 +127,24 @@ export function Ledger() {
         <table className="w-full min-w-[900px] text-left text-sm">
           <thead>
             <tr className="border-b border-gray-3 text-gray">
-              <th className="px-3 py-2">வீடு</th>
-              <th className="px-3 py-2">மாதம்</th>
-              <th className="px-3 py-2">வாடகை</th>
-              <th className="px-3 py-2">தண்ணீர்</th>
-              <th className="px-3 py-2">EB</th>
-              <th className="px-3 py-2">பராமரிப்பு</th>
-              <th className="px-3 py-2">முன் பாக்கி</th>
-              <th className="px-3 py-2">மொத்தம்</th>
-              <th className="px-3 py-2">நிலை</th>
-              <th className="px-3 py-2">வசூல்</th>
-              <th className="px-3 py-2">இருப்பு</th>
+              <th className="px-3 py-2">{t('common.house')}</th>
+              <th className="px-3 py-2">{t('common.month')}</th>
+              <th className="px-3 py-2">{t('common.rent')}</th>
+              <th className="px-3 py-2">{t('common.water')}</th>
+              <th className="px-3 py-2">{t('common.eb')}</th>
+              <th className="px-3 py-2">{t('common.maintenance')}</th>
+              <th className="px-3 py-2">{t('common.prevBalance')}</th>
+              <th className="px-3 py-2">{t('common.total')}</th>
+              <th className="px-3 py-2">{t('common.status')}</th>
+              <th className="px-3 py-2">{t('common.collected')}</th>
+              <th className="px-3 py-2">{t('common.balance')}</th>
             </tr>
           </thead>
           <tbody>
             {records.map((r) => (
               <tr key={r.id} className="border-b border-gray-3 last:border-0">
                 <td className="px-3 py-2">{r.house_id} — {houseName(r.house_id)}</td>
-                <td className="px-3 py-2">{mlabel(r.month)}</td>
+                <td className="px-3 py-2">{mlabel(r.month, language)}</td>
                 <td className="px-3 py-2">{fmt(r.rent)}</td>
                 <td className="px-3 py-2">{fmt(r.water)}</td>
                 <td className="px-3 py-2">{fmt(r.eb)}</td>
@@ -155,13 +157,13 @@ export function Ledger() {
               </tr>
             ))}
             {!loading && records.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray">பதிவுகள் இல்லை.</td></tr>
+              <tr><td colSpan={11} className="px-3 py-6 text-center text-gray">{t('common.noRecords')}</td></tr>
             )}
           </tbody>
           {records.length > 0 && (
             <tfoot>
               <tr className="border-t-2 border-gray-3 font-semibold">
-                <td className="px-3 py-2" colSpan={7}>மொத்தம்</td>
+                <td className="px-3 py-2" colSpan={7}>{t('common.total')}</td>
                 <td className="px-3 py-2">{fmt(totals.total)}</td>
                 <td className="px-3 py-2"></td>
                 <td className="px-3 py-2">{fmt(totals.received)}</td>

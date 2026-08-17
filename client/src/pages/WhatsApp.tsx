@@ -3,6 +3,7 @@ import { getHouses, getRecords } from '../api';
 import type { House, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
+import { useLanguage } from '../context/LanguageContext';
 
 interface DueHouse {
   house: House;
@@ -25,6 +26,7 @@ function buildMessage(due: DueHouse, month: string): string {
 
 export function WhatsApp() {
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [month, setMonth] = useState(todayYM());
   const [dueHouses, setDueHouses] = useState<DueHouse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,9 +69,9 @@ export function WhatsApp() {
   const copyMessage = async (due: DueHouse) => {
     try {
       await navigator.clipboard.writeText(buildMessage(due, month));
-      showToast('நகலெடுக்கப்பட்டது', 'ok');
+      showToast(t('common.copied'), 'ok');
     } catch {
-      showToast('நகலெடுக்க முடியவில்லை', 'err');
+      showToast(t('common.copyFailed'), 'err');
     }
   };
 
@@ -83,13 +85,13 @@ export function WhatsApp() {
           className="rounded-lg border border-gray-3 px-3 py-2 text-sm"
         />
         <button type="button" onClick={load} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
-          ஏற்று
+          {t('common.load')}
         </button>
       </div>
 
       {!loading && dueHouses.length === 0 && (
         <div className="rounded-xl border border-gray-3 bg-white p-6 text-center text-sm text-gray">
-          நிலுவை இல்லை. அனைவரும் செலுத்திவிட்டனர். 🎉
+          {t('dashboard.allPaid')} 🎉
         </div>
       )}
 
@@ -99,12 +101,12 @@ export function WhatsApp() {
             <div className="flex items-center justify-between">
               <p className="font-medium text-navy">{due.house.id} — {due.house.name}</p>
               <span className="rounded-full bg-brand-red/15 px-2 py-0.5 text-[10px] text-brand-red">
-                {due.status === 'partial' ? 'பகுதியாக' : due.status === 'none' ? 'இல்லை' : 'பதிவு இல்லை'}
+                {due.status === 'partial' ? t('common.partial') : due.status === 'none' ? t('common.none') : t('common.noRecord')}
               </span>
             </div>
-            {due.munBakki > 0 && <p className="mt-1 text-xs text-brand-orange">📌 முன் பாக்கி: {fmt(due.munBakki)}</p>}
-            <p className="mt-1 text-sm">நிலுவை: <span className="font-semibold text-brand-red">{fmt(due.balance)}</span></p>
-            <p className="mt-1 text-xs text-gray">{due.house.phone ?? 'தொலைபேசி இல்லை'}</p>
+            {due.munBakki > 0 && <p className="mt-1 text-xs text-brand-orange">📌 {t('common.prevBalance')}: {fmt(due.munBakki)}</p>}
+            <p className="mt-1 text-sm">{t('common.balance')}: <span className="font-semibold text-brand-red">{fmt(due.balance)}</span></p>
+            <p className="mt-1 text-xs text-gray">{due.house.phone ?? t('common.noPhone')}</p>
 
             <div className="mt-3">
               {due.house.phone ? (
@@ -122,7 +124,7 @@ export function WhatsApp() {
                   onClick={() => copyMessage(due)}
                   className="rounded-lg border border-gray-3 px-3 py-1.5 text-sm hover:bg-gray-4"
                 >
-                  📋 நகல்
+                  📋 {t('common.copy')}
                 </button>
               )}
             </div>

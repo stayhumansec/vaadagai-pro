@@ -13,12 +13,14 @@ export const prevYM = (ym: string): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const MONTH_LABELS = ['ஜன', 'பிப்', 'மார்', 'ஏப்', 'மே', 'ஜூன்', 'ஜூலை', 'ஆக', 'செப்', 'அக்', 'நவ', 'டிச'];
+const MONTH_LABELS_TA = ['ஜன', 'பிப்', 'மார்', 'ஏப்', 'மே', 'ஜூன்', 'ஜூலை', 'ஆக', 'செப்', 'அக்', 'நவ', 'டிச'];
+const MONTH_LABELS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export const mlabel = (ym: string): string => {
+export const mlabel = (ym: string, lang: 'ta' | 'en' = 'ta'): string => {
   if (!ym) return '';
   const [year, month] = ym.split('-');
-  return `${MONTH_LABELS[+month - 1]} ${year}`;
+  const labels = lang === 'en' ? MONTH_LABELS_EN : MONTH_LABELS_TA;
+  return `${labels[+month - 1]} ${year}`;
 };
 
 export const payStatusLabel = (status: string): string => {

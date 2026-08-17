@@ -1,40 +1,42 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { getDashboardSummary } from '../api';
 
 interface NavItem {
   path: string;
-  label: string;
+  labelKey: string;
   mobileLabel?: string;
   icon: string;
   mobile?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'டாஷ்போர்டு', icon: '📊', mobile: true },
-  { path: '/monthly', label: 'மாத பதிவு', icon: '📝', mobile: true },
-  { path: '/bulk', label: 'மொத்த பதிவு', icon: '📋', mobile: true },
-  { path: '/ledger', label: 'பதிவேடு', icon: '📒', mobile: true },
-  { path: '/receipt', label: 'ரசீது', icon: '🧾' },
-  { path: '/eb', label: 'EB டிராக்கர்', mobileLabel: 'EB', icon: '⚡', mobile: true },
-  { path: '/tenants', label: 'குடியிருப்பாளர்', icon: '🏘️' },
-  { path: '/rent-history', label: 'வாடகை வரலாறு', icon: '📈' },
-  { path: '/report', label: 'அறிக்கை', icon: '📑' },
-  { path: '/whatsapp', label: 'WhatsApp நினைவூட்டல்', mobileLabel: 'WhatsApp', icon: '💬', mobile: true },
-  { path: '/settings', label: 'அமைவு', icon: '⚙️' },
+  { path: '/', labelKey: 'nav.dashboard', icon: '📊', mobile: true },
+  { path: '/monthly', labelKey: 'nav.monthly', icon: '📝', mobile: true },
+  { path: '/bulk', labelKey: 'nav.bulk', icon: '📋', mobile: true },
+  { path: '/ledger', labelKey: 'nav.ledger', icon: '📒', mobile: true },
+  { path: '/receipt', labelKey: 'nav.receipt', icon: '🧾' },
+  { path: '/eb', labelKey: 'nav.eb', mobileLabel: 'EB', icon: '⚡', mobile: true },
+  { path: '/tenants', labelKey: 'nav.tenants', icon: '🏘️' },
+  { path: '/rent-history', labelKey: 'nav.rentHistory', icon: '📈' },
+  { path: '/report', labelKey: 'nav.report', icon: '📑' },
+  { path: '/whatsapp', labelKey: 'nav.whatsapp', mobileLabel: 'WhatsApp', icon: '💬', mobile: true },
+  { path: '/settings', labelKey: 'nav.settings', icon: '⚙️' },
 ];
-
-function currentTitle(pathname: string): string {
-  const match = NAV_ITEMS.find((item) => (item.path === '/' ? pathname === '/' : pathname.startsWith(item.path)));
-  return match?.label ?? 'வாடகை Pro';
-}
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dueCount, setDueCount] = useState(0);
   const { user, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const location = useLocation();
+
+  const currentTitle = (pathname: string): string => {
+    const match = NAV_ITEMS.find((item) => (item.path === '/' ? pathname === '/' : pathname.startsWith(item.path)));
+    return match ? t(match.labelKey) : 'வாடகை Pro';
+  };
 
   useEffect(() => {
     getDashboardSummary().then((s) => setDueCount(s.dueCount)).catch(() => {});
@@ -47,16 +49,24 @@ export function Layout() {
           type="button"
           className="text-xl md:hidden"
           onClick={() => setSidebarOpen((v) => !v)}
-          aria-label="மெனு"
+          aria-label={t('nav.menu')}
         >
           ☰
         </button>
         <span className="text-lg font-semibold">🏠 வாடகை Pro</span>
         <span className="hidden text-sm text-white/70 md:inline">— {currentTitle(location.pathname)}</span>
         <div className="ml-auto flex items-center gap-3 text-sm">
+          <button
+            type="button"
+            onClick={() => setLanguage(language === 'ta' ? 'en' : 'ta')}
+            className="rounded bg-white/10 px-2.5 py-1 text-xs font-medium hover:bg-white/20"
+            title={t('settings.language')}
+          >
+            {language === 'ta' ? 'த / EN' : 'EN / த'}
+          </button>
           {user && <span className="hidden sm:inline">{user.name}</span>}
           <button type="button" onClick={logout} className="rounded bg-white/10 px-3 py-1 hover:bg-white/20">
-            வெளியேறு
+            {t('nav.logout')}
           </button>
         </div>
       </header>
@@ -80,7 +90,7 @@ export function Layout() {
               }
             >
               <span>{item.icon}</span>
-              <span className="flex-1">{item.label}</span>
+              <span className="flex-1">{t(item.labelKey)}</span>
               {item.path === '/whatsapp' && dueCount > 0 && (
                 <span className="rounded-full bg-brand-red px-1.5 py-0.5 text-[10px] font-semibold text-white">{dueCount}</span>
               )}
@@ -117,7 +127,7 @@ export function Layout() {
                 </span>
               )}
             </span>
-            <span className="whitespace-nowrap">{item.mobileLabel ?? item.label}</span>
+            <span className="whitespace-nowrap">{item.mobileLabel ?? t(item.labelKey)}</span>
           </NavLink>
         ))}
       </nav>

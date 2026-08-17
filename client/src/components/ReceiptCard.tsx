@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import type { EBReading, House, RentRecord } from '../types';
 import { fmt, mlabel } from '../utils';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ReceiptCardProps {
   house: House;
@@ -12,41 +13,42 @@ export const ReceiptCard = forwardRef<HTMLDivElement, ReceiptCardProps>(function
   { house, record, ebReading },
   ref
 ) {
+  const { t, language } = useLanguage();
   return (
     <div ref={ref} className="w-[320px] bg-white p-5 font-mono text-sm text-navy">
-      <p className="text-center text-base">🏠 வாடகை ரசீது</p>
+      <p className="text-center text-base">{t('receipt.title')}</p>
       <p className="mt-2 text-center font-semibold">{house.name}</p>
       <p className="text-center text-gray">
-        வீடு {house.id} · {mlabel(record.month)}
+        {t('common.house')} {house.id} · {mlabel(record.month, language)}
       </p>
 
       <div className="my-2 border-t border-dashed border-gray-3" />
 
       <div className="flex justify-between">
-        <span>வாடகை</span>
+        <span>{t('common.rent')}</span>
         <span>{fmt(record.rent)}</span>
       </div>
       <div className="flex justify-between">
-        <span>தண்ணீர்</span>
+        <span>{t('common.water')}</span>
         <span>{fmt(record.water)}</span>
       </div>
       <div className="flex justify-between">
-        <span>மின்சாரம் (EB)</span>
+        <span>{t('common.eb')}</span>
         <span>{fmt(record.eb)}</span>
       </div>
       {ebReading && (
         <div className="ml-2 flex justify-between text-xs text-gray">
-          <span>வாசிப்பு {ebReading.start_reading} → {ebReading.end_reading}</span>
-          <span>{ebReading.units} யூனிட்</span>
+          <span>{t('receipt.readings')} {ebReading.start_reading} → {ebReading.end_reading}</span>
+          <span>{ebReading.units} {t('common.units')}</span>
         </div>
       )}
       <div className="flex justify-between">
-        <span>பராமரிப்பு</span>
+        <span>{t('common.maintenance')}</span>
         <span>{fmt(record.maintenance)}</span>
       </div>
       {record.mun_bakki > 0 && (
         <div className="flex justify-between text-brand-orange">
-          <span>📌 முன் பாக்கி</span>
+          <span>📌 {t('common.prevBalance')}</span>
           <span>{fmt(record.mun_bakki)}</span>
         </div>
       )}
@@ -54,25 +56,25 @@ export const ReceiptCard = forwardRef<HTMLDivElement, ReceiptCardProps>(function
       <div className="my-2 border-t border-dashed border-gray-3" />
 
       <div className="flex justify-between font-semibold">
-        <span>மொத்தம்</span>
+        <span>{t('common.total')}</span>
         <span>{fmt(record.total)}</span>
       </div>
       <div className="flex justify-between">
-        <span>வசூல்</span>
+        <span>{t('common.collected')}</span>
         <span>{fmt(record.received)}</span>
       </div>
 
       <div className="my-2 border-t border-dashed border-gray-3" />
 
       <div className="flex justify-between font-semibold text-brand-red">
-        <span>இருப்பு</span>
+        <span>{t('common.balance')}</span>
         <span>{fmt(record.balance)}</span>
       </div>
 
       <div className="my-2 border-t border-dashed border-gray-3" />
 
       <p className="text-center text-xs text-gray">
-        நன்றி! | {new Date().toLocaleDateString('en-IN')}
+        {t('receipt.thanks')} | {new Date().toLocaleDateString('en-IN')}
       </p>
     </div>
   );

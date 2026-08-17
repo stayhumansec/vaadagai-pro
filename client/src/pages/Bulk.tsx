@@ -3,6 +3,7 @@ import { getEBReadings, getHouses, getRecords, getRentHistory, saveRecordsBulk }
 import type { EBReading, House, PayStatus, RentRecord } from '../types';
 import { fmt, getEffectiveRent, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
+import { useLanguage } from '../context/LanguageContext';
 
 interface BulkRow {
   house: House;
@@ -17,6 +18,7 @@ interface BulkRow {
 
 export function Bulk() {
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [month, setMonth] = useState(todayYM());
   const [rows, setRows] = useState<BulkRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -85,10 +87,10 @@ export function Bulk() {
           received: r.pay_status === 'full' ? rowTotal(r) : r.pay_status === 'none' ? 0 : r.received,
         }))
       );
-      showToast('அனைத்து பதிவுகளும் சேமிக்கப்பட்டன', 'ok');
+      showToast(t('common.saved'), 'ok');
       load();
     } catch {
-      showToast('சேமிக்க முடியவில்லை', 'err');
+      showToast(t('common.saveFailed'), 'err');
     } finally {
       setSaving(false);
     }
@@ -104,7 +106,7 @@ export function Bulk() {
           className="rounded-lg border border-gray-3 px-3 py-2 text-sm"
         />
         <button type="button" onClick={load} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
-          ஏற்று
+          {t('common.load')}
         </button>
         <button
           type="button"
@@ -112,7 +114,7 @@ export function Bulk() {
           disabled={saving || rows.length === 0}
           className="ml-auto rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
         >
-          {saving ? 'சேமிக்கிறது...' : '💾 அனைத்தும் சேமி'}
+          {saving ? t('common.saving') : `💾 ${t('common.saveAll')}`}
         </button>
       </div>
 
@@ -120,16 +122,16 @@ export function Bulk() {
         <table className="w-full min-w-[900px] text-left text-sm">
           <thead>
             <tr className="border-b border-gray-3 text-gray">
-              <th className="px-3 py-2">வீடு</th>
-              <th className="px-3 py-2">பெயர்</th>
-              <th className="px-3 py-2">வாடகை</th>
-              <th className="px-3 py-2">தண்ணீர்</th>
-              <th className="px-3 py-2">EB</th>
-              <th className="px-3 py-2">முன் பாக்கி</th>
-              <th className="px-3 py-2">மொத்தம்</th>
-              <th className="px-3 py-2">நிலை</th>
-              <th className="px-3 py-2">வசூல்</th>
-              <th className="px-3 py-2">இருப்பு</th>
+              <th className="px-3 py-2">{t('common.house')}</th>
+              <th className="px-3 py-2">{t('common.name')}</th>
+              <th className="px-3 py-2">{t('common.rent')}</th>
+              <th className="px-3 py-2">{t('common.water')}</th>
+              <th className="px-3 py-2">{t('common.eb')}</th>
+              <th className="px-3 py-2">{t('common.prevBalance')}</th>
+              <th className="px-3 py-2">{t('common.total')}</th>
+              <th className="px-3 py-2">{t('common.status')}</th>
+              <th className="px-3 py-2">{t('bulk.received')}</th>
+              <th className="px-3 py-2">{t('common.balance')}</th>
             </tr>
           </thead>
           <tbody>
@@ -159,9 +161,9 @@ export function Bulk() {
                       onChange={(e) => updateRow(r.house.id, { pay_status: e.target.value as PayStatus })}
                       className="rounded border border-gray-3 px-1.5 py-1"
                     >
-                      <option value="full">முழுமையாக</option>
-                      <option value="partial">பகுதியாக</option>
-                      <option value="none">இல்லை</option>
+                      <option value="full">{t('common.full')}</option>
+                      <option value="partial">{t('common.partial')}</option>
+                      <option value="none">{t('common.none')}</option>
                     </select>
                   </td>
                   <td className="px-3 py-2">
@@ -181,7 +183,7 @@ export function Bulk() {
               );
             })}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray">செயலில் உள்ள வீடுகள் இல்லை.</td></tr>
+              <tr><td colSpan={10} className="px-3 py-6 text-center text-gray">{t('monthly.noActiveHouses')}</td></tr>
             )}
           </tbody>
         </table>

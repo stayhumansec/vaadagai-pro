@@ -4,6 +4,7 @@ import { addNewTenant, getHouses, getRecords, getRentHistory, getTenantHistory, 
 import type { House, HouseStatus, RentHistoryEntry, RentRecord, TenantHistoryEntry } from '../types';
 import { fmt, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
+import { useLanguage } from '../context/LanguageContext';
 
 interface NewTenantForm {
   name: string;
@@ -59,6 +60,7 @@ function toForm(house: House): HouseForm {
 
 export function Tenants() {
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<RentRecord[]>([]);
   const [editing, setEditing] = useState<HouseForm | null>(null);
@@ -111,13 +113,13 @@ export function Tenants() {
     setStartingNewTenant(true);
     try {
       await addNewTenant(editing.id, newTenantForm);
-      showToast('புதிய குடியிருப்பாளர் பதிவு செய்யப்பட்டது, முந்தைய குடியிருப்பாளர் வரலாற்றில் சேமிக்கப்பட்டார்', 'ok');
+      showToast(t('tenants.newTenantSaved'), 'ok');
       const updatedHouses = await getHouses();
       setHouses(updatedHouses);
       const updatedHouse = updatedHouses.find((h) => h.id === editing.id);
       if (updatedHouse) openEdit(updatedHouse);
     } catch {
-      showToast('சேமிக்க முடியவில்லை', 'err');
+      showToast(t('common.saveFailed'), 'err');
     } finally {
       setStartingNewTenant(false);
     }
@@ -144,11 +146,11 @@ export function Tenants() {
       if (proofFile) {
         await uploadHouseProof(editing.id, proofFile);
       }
-      showToast('குடியிருப்பாளர் தகவல் சேமிக்கப்பட்டது', 'ok');
+      showToast(t('tenants.saved'), 'ok');
       closeEdit();
       load();
     } catch {
-      showToast('சேமிக்க முடியவில்லை', 'err');
+      showToast(t('common.saveFailed'), 'err');
     } finally {
       setSaving(false);
     }
@@ -157,14 +159,14 @@ export function Tenants() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-brand-green/15 px-3 py-1 text-sm text-brand-green">செயலில் {activeCount}</span>
-        <span className="rounded-full bg-gray-3 px-3 py-1 text-sm text-gray">செயலற்றது {inactiveCount}</span>
+        <span className="rounded-full bg-brand-green/15 px-3 py-1 text-sm text-brand-green">{t('common.active')} {activeCount}</span>
+        <span className="rounded-full bg-gray-3 px-3 py-1 text-sm text-gray">{t('common.inactive')} {inactiveCount}</span>
         <button
           type="button"
           onClick={() => houses[0] && openEdit(houses[0])}
           className="ml-auto rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90"
         >
-          ➕ குடியிருப்பாளர் சேர்
+          {t('tenants.addTenant')}
         </button>
       </div>
 
@@ -187,17 +189,17 @@ export function Tenants() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-navy">{house.name}</p>
                   <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] ${house.status === 'Active' ? 'bg-brand-green/15 text-brand-green' : 'bg-gray-3 text-gray'}`}>
-                    {house.status === 'Active' ? 'செயலில்' : 'செயலற்றது'}
+                    {house.status === 'Active' ? t('common.active') : t('common.inactive')}
                   </span>
                 </div>
               </div>
               <div className="mt-3 space-y-1 text-xs text-gray">
-                <p>EB விலை: ₹{house.eb_rate}/யூ</p>
-                <p>உறுப்பினர்கள்: {house.members}</p>
-                <p>தொலைபேசி: {house.phone ?? '—'}</p>
-                <p>குடி வந்தது: {house.move_in_date ?? '—'}</p>
-                <p>இந்த மாதம்: {thisMonth ? thisMonth.pay_status : 'பதிவு இல்லை'}</p>
-                <p className="font-medium text-navy">மொத்த வசூல்: {fmt(totalCollected)}</p>
+                <p>{t('common.ebRate')}: ₹{house.eb_rate}/யூ</p>
+                <p>{t('tenants.members')}: {house.members}</p>
+                <p>{t('common.phone')}: {house.phone ?? '—'}</p>
+                <p>{t('tenants.moveInDate')}: {house.move_in_date ?? '—'}</p>
+                <p>{t('common.month')}: {thisMonth ? thisMonth.pay_status : t('common.noRecord')}</p>
+                <p className="font-medium text-navy">{t('tenants.totalCollected')}: {fmt(totalCollected)}</p>
               </div>
             </button>
           );
@@ -206,12 +208,12 @@ export function Tenants() {
 
       {editing && (
         <Modal
-          title={`வீடு ${editing.id} — குடியிருப்பாளர் தகவல்`}
+          title={`${t('common.house')} ${editing.id} — ${t('tenants.tenantInfoTitle')}`}
           onClose={closeEdit}
           footer={
             <>
               <button type="button" onClick={closeEdit} className="rounded-lg border border-gray-3 px-4 py-2 text-sm">
-                ரத்து
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -219,14 +221,14 @@ export function Tenants() {
                 disabled={saving}
                 className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
               >
-                {saving ? 'சேமிக்கிறது...' : 'சேமி'}
+                {saving ? t('common.saving') : t('common.save')}
               </button>
             </>
           }
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-lg bg-gray-4 px-3 py-2">
-              <span className="text-sm text-navy">{editing.status === 'Active' ? 'செயலில்' : 'செயலற்றது'}</span>
+              <span className="text-sm text-navy">{editing.status === 'Active' ? t('common.active') : t('common.inactive')}</span>
               <button
                 type="button"
                 onClick={() => setEditing({ ...editing, status: editing.status === 'Active' ? 'Inactive' : 'Active' })}
@@ -244,17 +246,17 @@ export function Tenants() {
               }}
               className="w-full rounded-lg border border-dashed border-brand-blue px-3 py-2 text-sm text-brand-blue hover:bg-brand-blue/5"
             >
-              {newTenantMode ? '✕ புதிய குடியிருப்பாளர் ரத்து' : '🔄 புதிய குடியிருப்பாளர் — தற்போதைய குடியிருப்பாளரை வரலாற்றில் சேமித்து மாற்றவும்'}
+              {newTenantMode ? t('tenants.newTenantToggleOff') : t('tenants.newTenantToggleOn')}
             </button>
 
             {newTenantMode && (
               <div className="space-y-2 rounded-lg border border-brand-blue bg-brand-blue/5 p-3">
                 <p className="text-xs text-gray">
-                  தற்போதைய குடியிருப்பாளர் ({editing.name || '—'}) தானாக முந்தைய குடியிருப்பாளர் வரலாற்றில் சேமிக்கப்படுவார்.
+                  {t('tenants.newTenantHint')}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <label className="text-sm">
-                    புதிய பெயர்
+                    {t('tenants.newName')}
                     <input
                       value={newTenantForm.name}
                       onChange={(e) => setNewTenantForm({ ...newTenantForm, name: e.target.value })}
@@ -262,7 +264,7 @@ export function Tenants() {
                     />
                   </label>
                   <label className="text-sm">
-                    தொலைபேசி
+                    {t('common.phone')}
                     <input
                       value={newTenantForm.phone}
                       onChange={(e) => setNewTenantForm({ ...newTenantForm, phone: e.target.value })}
@@ -272,7 +274,7 @@ export function Tenants() {
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <label className="text-xs">
-                    உறுப்பினர்கள்
+                    {t('tenants.members')}
                     <input
                       type="number"
                       value={newTenantForm.members}
@@ -281,7 +283,7 @@ export function Tenants() {
                     />
                   </label>
                   <label className="text-xs">
-                    ஆவண வகை
+                    {t('tenants.proofType')}
                     <select
                       value={newTenantForm.proof_type}
                       onChange={(e) => setNewTenantForm({ ...newTenantForm, proof_type: e.target.value })}
@@ -294,7 +296,7 @@ export function Tenants() {
                     </select>
                   </label>
                   <label className="text-xs">
-                    ஆவண எண்
+                    {t('tenants.proofNumber')}
                     <input
                       value={newTenantForm.proof_number}
                       onChange={(e) => setNewTenantForm({ ...newTenantForm, proof_number: e.target.value })}
@@ -303,7 +305,7 @@ export function Tenants() {
                   </label>
                 </div>
                 <label className="block text-sm">
-                  குடி வந்த தேதி
+                  {t('tenants.moveInDate')}
                   <input
                     type="date"
                     value={newTenantForm.move_in_date}
@@ -317,14 +319,14 @@ export function Tenants() {
                   disabled={startingNewTenant || !newTenantForm.name.trim()}
                   className="w-full rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
                 >
-                  {startingNewTenant ? 'சேமிக்கிறது...' : 'உறுதிப்படுத்து — புதிய குடியிருப்பாளரை சேர்'}
+                  {startingNewTenant ? t('common.saving') : t('tenants.confirmNewTenant')}
                 </button>
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
-                வீடு எண்
+                {t('common.houseNo')}
                 <select
                   value={editing.id}
                   onChange={(e) => {
@@ -339,7 +341,7 @@ export function Tenants() {
                 </select>
               </label>
               <label className="text-sm">
-                பெயர்
+                {t('common.name')}
                 <input
                   value={editing.name}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })}
@@ -350,7 +352,7 @@ export function Tenants() {
 
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
-                தொலைபேசி
+                {t('common.phone')}
                 <input
                   value={editing.phone}
                   onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
@@ -358,7 +360,7 @@ export function Tenants() {
                 />
               </label>
               <label className="text-sm">
-                உறுப்பினர்கள்
+                {t('tenants.members')}
                 <input
                   type="number"
                   value={editing.members}
@@ -370,15 +372,15 @@ export function Tenants() {
 
             <div className="grid grid-cols-4 gap-2">
               <label className="text-xs">
-                வாடகை ₹
+                {t('common.rent')} ₹
                 <input type="number" value={editing.default_rent} onChange={(e) => setEditing({ ...editing, default_rent: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
               </label>
               <label className="text-xs">
-                தண்ணீர் ₹
+                {t('common.water')} ₹
                 <input type="number" value={editing.water} onChange={(e) => setEditing({ ...editing, water: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
               </label>
               <label className="text-xs">
-                பராமரிப்பு ₹
+                {t('common.maintenance')} ₹
                 <input type="number" value={editing.maintenance} onChange={(e) => setEditing({ ...editing, maintenance: +e.target.value })} className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5" />
               </label>
               <label className="text-xs">
@@ -389,7 +391,7 @@ export function Tenants() {
 
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
-                குடி வந்த தேதி
+                {t('tenants.moveInDate')}
                 <input
                   type="date"
                   value={editing.move_in_date}
@@ -398,7 +400,7 @@ export function Tenants() {
                 />
               </label>
               <label className="text-sm">
-                குடி வெளியேறிய தேதி
+                {t('tenants.moveOutDate')}
                 <input
                   type="date"
                   value={editing.move_out_date}
@@ -411,7 +413,7 @@ export function Tenants() {
 
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
-                ஆவண வகை
+                {t('tenants.proofType')}
                 <select
                   value={editing.proof_type}
                   onChange={(e) => setEditing({ ...editing, proof_type: e.target.value })}
@@ -424,7 +426,7 @@ export function Tenants() {
                 </select>
               </label>
               <label className="text-sm">
-                ஆவண எண்
+                {t('tenants.proofNumber')}
                 <input
                   value={editing.proof_number}
                   onChange={(e) => setEditing({ ...editing, proof_number: e.target.value })}
@@ -434,7 +436,7 @@ export function Tenants() {
             </div>
 
             <label className="block text-sm">
-              ஆவண கோப்பு
+              {t('tenants.proofFile')}
               <input
                 type="file"
                 accept=".pdf,.png,.jpg,.jpeg"
@@ -444,20 +446,20 @@ export function Tenants() {
             </label>
 
             <div className="rounded-lg bg-brand-amber/15 px-3 py-2 text-xs text-brand-amber">
-              வாடகை மாற்றங்களை வாடகை வரலாறு-ல் பதிவு செய்யவும்
+              {t('tenants.rentHistoryHint')}
             </div>
 
             {history.length > 0 && (
               <div>
-                <p className="mb-1 text-sm font-medium text-navy">வாடகை வரலாறு</p>
+                <p className="mb-1 text-sm font-medium text-navy">{t('tenants.rentHistoryTitle')}</p>
                 <div className="overflow-x-auto rounded-lg border border-gray-3">
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-gray-3 text-gray">
-                        <th className="px-2 py-1">முதல்</th>
-                        <th className="px-2 py-1">வாடகை</th>
-                        <th className="px-2 py-1">தண்ணீர்</th>
-                        <th className="px-2 py-1">பராமரிப்பு</th>
+                        <th className="px-2 py-1">{t('rentHistory.effectiveFrom')}</th>
+                        <th className="px-2 py-1">{t('common.rent')}</th>
+                        <th className="px-2 py-1">{t('common.water')}</th>
+                        <th className="px-2 py-1">{t('common.maintenance')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -477,24 +479,24 @@ export function Tenants() {
 
             {tenantHistory.length > 0 && (
               <div>
-                <p className="mb-1 text-sm font-medium text-navy">முந்தைய குடியிருப்பாளர்கள்</p>
+                <p className="mb-1 text-sm font-medium text-navy">{t('tenants.previousTenants')}</p>
                 <div className="overflow-x-auto rounded-lg border border-gray-3">
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-gray-3 text-gray">
-                        <th className="px-2 py-1">பெயர்</th>
-                        <th className="px-2 py-1">தொலைபேசி</th>
-                        <th className="px-2 py-1">குடி வந்தது</th>
-                        <th className="px-2 py-1">குடி வெளியேறியது</th>
+                        <th className="px-2 py-1">{t('common.name')}</th>
+                        <th className="px-2 py-1">{t('common.phone')}</th>
+                        <th className="px-2 py-1">{t('tenants.moveInDate')}</th>
+                        <th className="px-2 py-1">{t('tenants.moveOutDate')}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {tenantHistory.map((t) => (
-                        <tr key={t.id} className="border-b border-gray-3 last:border-0">
-                          <td className="px-2 py-1">{t.name}</td>
-                          <td className="px-2 py-1">{t.phone ?? '—'}</td>
-                          <td className="px-2 py-1">{t.move_in_date ?? '—'}</td>
-                          <td className="px-2 py-1">{t.move_out_date ?? '—'}</td>
+                      {tenantHistory.map((entry) => (
+                        <tr key={entry.id} className="border-b border-gray-3 last:border-0">
+                          <td className="px-2 py-1">{entry.name}</td>
+                          <td className="px-2 py-1">{entry.phone ?? '—'}</td>
+                          <td className="px-2 py-1">{entry.move_in_date ?? '—'}</td>
+                          <td className="px-2 py-1">{entry.move_out_date ?? '—'}</td>
                         </tr>
                       ))}
                     </tbody>

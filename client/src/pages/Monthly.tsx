@@ -5,6 +5,7 @@ import { autoGenerateRecords, getEBReadings, getHouses, getRecords, getRentHisto
 import type { EBReading, House, PayStatus, RentHistoryEntry, RentRecord } from '../types';
 import { fmt, getEffectiveRent, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
+import { useLanguage } from '../context/LanguageContext';
 
 interface EntryForm {
   rent: number;
@@ -19,6 +20,7 @@ interface EntryForm {
 
 export function Monthly() {
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [month, setMonth] = useState(todayYM());
   const [houses, setHouses] = useState<House[]>([]);
   const [rentHistory, setRentHistory] = useState<RentHistoryEntry[]>([]);
@@ -136,7 +138,7 @@ export function Monthly() {
     try {
       const result = await autoGenerateRecords(month, Array.from(selectedHouseIds));
       showToast(
-        `${result.created.length} பதிவுகள் உருவாக்கப்பட்டன, ${result.skipped.length} தவிர்க்கப்பட்டன`,
+        `${result.created.length} ${t('monthly.recordsCreated')}, ${result.skipped.length} ${t('monthly.recordsSkipped')}`,
         result.missingEB.length ? 'warn' : 'ok'
       );
       setAutoModalOpen(false);
@@ -161,11 +163,11 @@ export function Monthly() {
         received,
         note: form.note,
       });
-      showToast('பதிவு சேமிக்கப்பட்டது', 'ok');
+      showToast(t('common.saved'), 'ok');
       closeEntry();
       load();
     } catch {
-      showToast('சேமிக்க முடியவில்லை', 'err');
+      showToast(t('common.saveFailed'), 'err');
     } finally {
       setSaving(false);
     }
@@ -181,22 +183,22 @@ export function Monthly() {
           className="rounded-lg border border-gray-3 px-3 py-2 text-sm"
         />
         <button type="button" onClick={load} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
-          ஏற்று
+          {t('common.load')}
         </button>
         <button
           type="button"
           onClick={openAutoModal}
           className="rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90"
         >
-          ✨ Auto உருவாக்கு
+          {t('monthly.autoGenerate')}
         </button>
       </div>
 
       {houses.length > 0 && (
         <div className={`rounded-lg px-4 py-2 text-sm ${missingEBHouses.length ? 'bg-brand-amber/15 text-brand-amber' : 'bg-brand-green/15 text-brand-green'}`}>
           {missingEBHouses.length
-            ? `${missingEBHouses.length} வீடுகளுக்கு இந்த மாதத்திற்கான EB பதிவு இல்லை: ${missingEBHouses.map((h) => h.id).join(', ')}`
-            : 'அனைத்து செயலில் உள்ள வீடுகளுக்கும் EB பதிவு உள்ளது.'}
+            ? `${missingEBHouses.length} ${t('monthly.missingEB')}: ${missingEBHouses.map((h) => h.id).join(', ')}`
+            : t('monthly.allEBPresent')}
         </div>
       )}
 
@@ -204,13 +206,13 @@ export function Monthly() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-gray-3 text-gray">
-              <th className="px-3 py-2">வீடு</th>
-              <th className="px-3 py-2">பெயர்</th>
-              <th className="px-3 py-2">வாடகை</th>
-              <th className="px-3 py-2">முன் பாக்கி</th>
-              <th className="px-3 py-2">EB</th>
-              <th className="px-3 py-2">மொத்தம்</th>
-              <th className="px-3 py-2">நிலை</th>
+              <th className="px-3 py-2">{t('common.house')}</th>
+              <th className="px-3 py-2">{t('common.name')}</th>
+              <th className="px-3 py-2">{t('common.rent')}</th>
+              <th className="px-3 py-2">{t('common.prevBalance')}</th>
+              <th className="px-3 py-2">{t('common.eb')}</th>
+              <th className="px-3 py-2">{t('common.total')}</th>
+              <th className="px-3 py-2">{t('common.status')}</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -225,23 +227,23 @@ export function Monthly() {
                   <td className="px-3 py-2">{house.name}</td>
                   <td className="px-3 py-2">{fmt(record?.rent ?? eff.rent)}</td>
                   <td className="px-3 py-2">{fmt(record?.mun_bakki ?? prevRecords[house.id]?.balance)}</td>
-                  <td className="px-3 py-2">{eb ? fmt(eb.amount) : <span className="text-brand-red">இல்லை</span>}</td>
+                  <td className="px-3 py-2">{eb ? fmt(eb.amount) : <span className="text-brand-red">{t('common.none')}</span>}</td>
                   <td className="px-3 py-2 font-medium">{record ? fmt(record.total) : '—'}</td>
-                  <td className="px-3 py-2">{record ? record.pay_status : 'பதிவு இல்லை'}</td>
+                  <td className="px-3 py-2">{record ? record.pay_status : t('common.noRecord')}</td>
                   <td className="px-3 py-2">
                     <button
                       type="button"
                       onClick={() => openEntry(house)}
                       className="rounded border border-gray-3 px-2 py-1 text-xs hover:bg-gray-4"
                     >
-                      {record ? '✏️ திருத்து' : '➕ சேர்'}
+                      {record ? `✏️ ${t('common.edit')}` : `➕ ${t('common.add')}`}
                     </button>
                   </td>
                 </tr>
               );
             })}
             {!loading && houses.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-6 text-center text-gray">செயலில் உள்ள வீடுகள் இல்லை.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-6 text-center text-gray">{t('monthly.noActiveHouses')}</td></tr>
             )}
           </tbody>
         </table>
@@ -249,12 +251,12 @@ export function Monthly() {
 
       {activeHouse && form && (
         <Modal
-          title={`வீடு ${activeHouse.id} — ${activeHouse.name}`}
+          title={`${t('common.house')} ${activeHouse.id} — ${activeHouse.name}`}
           onClose={closeEntry}
           footer={
             <>
               <button type="button" onClick={closeEntry} className="rounded-lg border border-gray-3 px-4 py-2 text-sm">
-                ரத்து
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -262,7 +264,7 @@ export function Monthly() {
                 disabled={saving}
                 className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
               >
-                {saving ? 'சேமிக்கிறது...' : 'சேமி'}
+                {saving ? t('common.saving') : t('common.save')}
               </button>
             </>
           }
@@ -270,7 +272,7 @@ export function Monthly() {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
-                வாடகை ₹
+                {t('common.rent')} ₹
                 <input
                   type="number"
                   value={form.rent}
@@ -279,7 +281,7 @@ export function Monthly() {
                 />
               </label>
               <label className="text-sm">
-                தண்ணீர் ₹
+                {t('common.water')} ₹
                 <input
                   type="number"
                   value={form.water}
@@ -288,7 +290,7 @@ export function Monthly() {
                 />
               </label>
               <label className="text-sm">
-                பராமரிப்பு ₹
+                {t('common.maintenance')} ₹
                 <input
                   type="number"
                   value={form.maintenance}
@@ -297,7 +299,7 @@ export function Monthly() {
                 />
               </label>
               <label className="text-sm">
-                EB தொகை ₹
+                {t('monthly.ebAmount')}
                 <input
                   type="number"
                   value={form.eb}
@@ -308,20 +310,20 @@ export function Monthly() {
             </div>
 
             <div className="rounded-lg bg-gray-4 px-3 py-2 text-sm text-gray">
-              முன் பாக்கி ₹ <span className="float-right font-medium text-brand-orange">{fmt(form.mun_bakki)}</span>
+              {t('common.prevBalance')} ₹ <span className="float-right font-medium text-brand-orange">{fmt(form.mun_bakki)}</span>
             </div>
             <div className="rounded-lg bg-gray-4 px-3 py-2 text-sm text-gray">
-              மொத்தம் ₹ <span className="float-right font-medium text-navy">{fmt(total)}</span>
+              {t('common.total')} ₹ <span className="float-right font-medium text-navy">{fmt(total)}</span>
             </div>
 
             <div>
-              <p className="mb-1 text-sm text-gray">கட்டண நிலை</p>
+              <p className="mb-1 text-sm text-gray">{t('monthly.payStatusLabel')}</p>
               <PayChips value={form.pay_status} onChange={(pay_status) => setForm({ ...form, pay_status })} />
             </div>
 
             {form.pay_status === 'partial' && (
               <label className="block text-sm">
-                பெற்ற தொகை ₹
+                {t('monthly.receivedAmount')}
                 <input
                   type="number"
                   value={form.received}
@@ -333,15 +335,15 @@ export function Monthly() {
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg bg-gray-4 px-3 py-2 text-gray">
-                செலுத்திய தொகை <span className="float-right font-medium">{fmt(received)}</span>
+                {t('monthly.receivedAmountLabel')} <span className="float-right font-medium">{fmt(received)}</span>
               </div>
               <div className="rounded-lg bg-gray-4 px-3 py-2 text-gray">
-                இருப்பு <span className="float-right font-medium text-brand-red">{fmt(balance)}</span>
+                {t('common.balance')} <span className="float-right font-medium text-brand-red">{fmt(balance)}</span>
               </div>
             </div>
 
             <label className="block text-sm">
-              குறிப்பு
+              {t('common.note')}
               <textarea
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
@@ -355,12 +357,12 @@ export function Monthly() {
 
       {autoModalOpen && (
         <Modal
-          title="✨ Auto உருவாக்கு — வீடுகளை தேர்வு செய்யவும்"
+          title={t('monthly.autoGenerateTitle')}
           onClose={() => setAutoModalOpen(false)}
           footer={
             <>
               <button type="button" onClick={() => setAutoModalOpen(false)} className="rounded-lg border border-gray-3 px-4 py-2 text-sm">
-                ரத்து
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -368,7 +370,7 @@ export function Monthly() {
                 disabled={autoGenerating || selectedHouseIds.size === 0}
                 className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
               >
-                {autoGenerating ? 'உருவாக்குகிறது...' : `உருவாக்கு (${selectedHouseIds.size})`}
+                {autoGenerating ? t('monthly.generating') : `${t('monthly.generate')} (${selectedHouseIds.size})`}
               </button>
             </>
           }
@@ -380,7 +382,7 @@ export function Monthly() {
                 checked={selectedHouseIds.size === houses.length && houses.length > 0}
                 onChange={(e) => setSelectedHouseIds(e.target.checked ? new Set(houses.map((h) => h.id)) : new Set())}
               />
-              அனைத்தும் தேர்வு செய்
+              {t('monthly.selectAll')}
             </label>
             <div className="max-h-64 space-y-1 overflow-y-auto">
               {houses.map((house) => (
@@ -390,7 +392,7 @@ export function Monthly() {
                     checked={selectedHouseIds.has(house.id)}
                     onChange={() => toggleSelectedHouse(house.id)}
                   />
-                  வீடு {house.id} — {house.name}
+                  {t('common.house')} {house.id} — {house.name}
                 </label>
               ))}
             </div>

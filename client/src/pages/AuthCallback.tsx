@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 export function AuthCallback() {
   const [params] = useSearchParams();
   const { handleGoogleCallback } = useAuth();
+  const { t } = useLanguage();
   const [status, setStatus] = useState<'working' | 'done' | 'error'>('working');
 
   useEffect(() => {
@@ -24,12 +26,12 @@ export function AuthCallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy text-white">
       {status === 'working' ? (
-        <p>உள்நுழைகிறது...</p>
+        <p>{t('auth.signingIn')}</p>
       ) : (
         <div className="text-center">
-          <p>உள்நுழைவு தோல்வியடைந்தது.</p>
+          <p>{t('auth.signInFailed')}</p>
           <a href="/login" className="mt-2 inline-block underline">
-            மீண்டும் முயற்சிக்கவும்
+            {t('auth.tryAgain')}
           </a>
         </div>
       )}
