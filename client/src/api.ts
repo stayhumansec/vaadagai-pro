@@ -77,6 +77,8 @@ export const autoGenerateRecords = (month: string, house_ids?: number[]) =>
 export const getEBReadings = (params: { house_id?: number; year?: string }) =>
   api.get<EBReading[]>('/eb', { params }).then((r) => r.data);
 export const saveEBReading = (data: Partial<EBReading>) => api.post<EBReading>('/eb', data).then((r) => r.data);
+export const saveEBReadingsBulk = (data: Partial<EBReading>[]) =>
+  api.post<{ saved: number; errors: { row: number; error: string }[] }>('/eb/bulk', data).then((r) => r.data);
 
 // Rent history
 export const getRentHistory = (house_id?: number) =>
