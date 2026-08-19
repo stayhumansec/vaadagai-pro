@@ -5,12 +5,16 @@ const { prevYM, getEffectiveRent } = require('../lib/rent');
 
 const router = express.Router();
 
-function upsertRecord({ house_id, month, rent = 0, water = 0, eb = 0, maintenance = 0, pay_status = 'none', received = 0, note = '' }) {
+function upsertRecord({ house_id, month, rent = 0, water = 0, eb = 0, maintenance = 0, pay_status, received = 0, note = '' }) {
   const prevMonth = prevYM(month);
   const prevRecord = db.prepare('SELECT balance FROM records WHERE house_id = ? AND month = ?').get(house_id, prevMonth);
   const mun_bakki = prevRecord?.balance ?? 0;
   const total = rent + water + eb + maintenance + mun_bakki;
   const balance = total - received;
+  // When a caller doesn't know the status up front (e.g. bulk-uploading past
+  // rentals, where only the actual amount received is known), derive it from
+  // received vs. the just-computed total instead of defaulting to 'none'.
+  const status = pay_status ?? (received <= 0 ? 'none' : received >= total ? 'full' : 'partial');
 
   const existing = db.prepare('SELECT id FROM records WHERE house_id = ? AND month = ?').get(house_id, month);
 
@@ -20,14 +24,14 @@ function upsertRecord({ house_id, month, rent = 0, water = 0, eb = 0, maintenanc
         rent = ?, water = ?, eb = ?, maintenance = ?, mun_bakki = ?, total = ?,
         pay_status = ?, received = ?, balance = ?, note = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(rent, water, eb, maintenance, mun_bakki, total, pay_status, received, balance, note, existing.id);
+    `).run(rent, water, eb, maintenance, mun_bakki, total, status, received, balance, note, existing.id);
     return db.prepare('SELECT * FROM records WHERE id = ?').get(existing.id);
   }
 
   const info = db.prepare(`
     INSERT INTO records (house_id, month, rent, water, eb, maintenance, mun_bakki, total, pay_status, received, balance, note)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(house_id, month, rent, water, eb, maintenance, mun_bakki, total, pay_status, received, balance, note);
+  `).run(house_id, month, rent, water, eb, maintenance, mun_bakki, total, status, received, balance, note);
   return db.prepare('SELECT * FROM records WHERE id = ?').get(info.lastInsertRowid);
 }
 
@@ -50,11 +54,27 @@ router.get('/:house/:month', auth, (req, res) => {
 
 router.post('/bulk', auth, (req, res) => {
   if (!Array.isArray(req.body)) return res.status(400).json({ error: 'Body must be an array of records' });
-  for (const r of req.body) {
-    if (!r.house_id || !r.month) return res.status(400).json({ error: 'Each record needs house_id and month' });
-  }
+
+  const errors = [];
+  const valid = [];
+  req.body.forEach((r, i) => {
+    if (!r.house_id || !r.month || !/^\d{4}-\d{2}$/.test(r.month)) {
+      errors.push({ row: i + 1, error: 'house_id and a valid month (YYYY-MM) are required' });
+    } else if (!db.prepare('SELECT id FROM houses WHERE id = ?').get(r.house_id)) {
+      errors.push({ row: i + 1, error: `house_id ${r.house_id} not found` });
+    } else {
+      valid.push(r);
+    }
+  });
+
+  // Process oldest month first per house so mun_bakki (previous balance)
+  // carries forward correctly when a whole history is uploaded in one batch,
+  // regardless of the order rows appeared in the uploaded file.
+  valid.sort((a, b) => (a.house_id - b.house_id) || String(a.month).localeCompare(String(b.month)));
+
   const run = db.transaction((records) => records.map(upsertRecord));
-  res.json(run(req.body));
+  const saved = run(valid);
+  res.json({ saved: saved.length, errors });
 });
 
 router.post('/auto-generate', auth, (req, res) => {
