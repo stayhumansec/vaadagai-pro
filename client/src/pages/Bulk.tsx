@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getEBReadings, getHouses, getRecords, getRentHistory, saveRecordsBulk } from '../api';
 import type { EBReading, House, PayStatus, RentRecord } from '../types';
 import { fmt, getEffectiveRent, prevYM, todayYM } from '../utils';
@@ -16,6 +16,17 @@ interface BulkRow {
   received: number;
 }
 
+const PAST_UPLOAD_HEADERS = {
+  house: 'வீடு எண்',
+  month: 'மாதம் (YYYY-MM)',
+  rent: 'வாடகை',
+  water: 'தண்ணீர்',
+  maintenance: 'பராமரிப்பு',
+  eb: 'EB',
+  received: 'பெற்ற தொகை',
+  note: 'குறிப்பு (விருப்பம்)',
+};
+
 export function Bulk() {
   const { showToast } = useToast();
   const { t } = useLanguage();
@@ -23,6 +34,10 @@ export function Bulk() {
   const [rows, setRows] = useState<BulkRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [houses, setHouses] = useState<House[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
@@ -66,11 +81,88 @@ export function Bulk() {
 
   useEffect(() => { load(); }, [month]);
 
+  useEffect(() => {
+    getHouses().then(setHouses);
+    // Warm the exceljs chunk ahead of time so the download/upload buttons
+    // don't hit a slow first-import delay (which can cost the click its
+    // "user gesture" window on some mobile browsers and fail silently).
+    import('../lib/excel');
+  }, []);
+
   const updateRow = (houseId: number, patch: Partial<BulkRow>) => {
     setRows((prev) => prev.map((r) => (r.house.id === houseId ? { ...r, ...patch } : r)));
   };
 
   const rowTotal = (r: BulkRow) => r.rent + r.water + r.eb + r.maintenance + r.mun_bakki;
+
+  const downloadTemplate = async () => {
+    setDownloadingTemplate(true);
+    try {
+      const { downloadExcel } = await import('../lib/excel');
+      const sampleHouse = houses[0];
+      await downloadExcel(
+        [
+          {
+            name: 'படிவம்',
+            headers: [
+              PAST_UPLOAD_HEADERS.house, PAST_UPLOAD_HEADERS.month, PAST_UPLOAD_HEADERS.rent,
+              PAST_UPLOAD_HEADERS.water, PAST_UPLOAD_HEADERS.maintenance, PAST_UPLOAD_HEADERS.eb,
+              PAST_UPLOAD_HEADERS.received, PAST_UPLOAD_HEADERS.note,
+            ],
+            rows: [[
+              sampleHouse?.id ?? 1, prevYM(todayYM()), sampleHouse?.default_rent ?? 5000,
+              sampleHouse?.water ?? 200, sampleHouse?.maintenance ?? 0, 0, sampleHouse?.default_rent ?? 5000, '',
+            ]],
+          },
+          {
+            name: 'வீடுகள்',
+            headers: ['வீடு எண்', 'பெயர்', 'வாடகை', 'தண்ணீர்', 'பராமரிப்பு'],
+            rows: houses.map((h) => [h.id, h.name, h.default_rent, h.water, h.maintenance]),
+          },
+        ],
+        'past-rentals-template.xlsx'
+      );
+    } catch {
+      showToast(t('bulk.templateDownloadFailed'), 'err');
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  };
+
+  const handleUploadFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const { readExcelSheet } = await import('../lib/excel');
+      const fileRows = await readExcelSheet(file);
+      const parsed = fileRows.map((r) => ({
+        house_id: Number(r[PAST_UPLOAD_HEADERS.house]),
+        month: r[PAST_UPLOAD_HEADERS.month],
+        rent: Number(r[PAST_UPLOAD_HEADERS.rent] || 0),
+        water: Number(r[PAST_UPLOAD_HEADERS.water] || 0),
+        maintenance: Number(r[PAST_UPLOAD_HEADERS.maintenance] || 0),
+        eb: Number(r[PAST_UPLOAD_HEADERS.eb] || 0),
+        received: Number(r[PAST_UPLOAD_HEADERS.received] || 0),
+        note: r[PAST_UPLOAD_HEADERS.note] || '',
+      }));
+      if (parsed.length === 0) {
+        showToast(t('bulk.noDataInFile'), 'warn');
+        return;
+      }
+      const result = await saveRecordsBulk(parsed);
+      showToast(
+        result.errors.length
+          ? `${result.saved} ${t('bulk.savedWithErrors')}, ${result.errors.length} ${t('bulk.rowErrors')} ${result.errors.map((e) => e.row).join(', ')})`
+          : `${result.saved} ${t('bulk.uploaded')}`,
+        result.errors.length ? 'warn' : 'ok'
+      );
+      load();
+    } catch {
+      showToast(t('bulk.fileReadFailed'), 'err');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSaveAll = async () => {
     setSaving(true);
@@ -108,14 +200,42 @@ export function Bulk() {
         <button type="button" onClick={load} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
           {t('common.load')}
         </button>
-        <button
-          type="button"
-          onClick={handleSaveAll}
-          disabled={saving || rows.length === 0}
-          className="ml-auto rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
-        >
-          {saving ? t('common.saving') : `💾 ${t('common.saveAll')}`}
-        </button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={downloadTemplate}
+            disabled={downloadingTemplate}
+            className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
+          >
+            {downloadingTemplate ? t('common.downloading') : t('bulk.downloadTemplate')}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
+          >
+            {uploading ? t('common.uploading') : t('bulk.uploadPast')}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUploadFile(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleSaveAll}
+            disabled={saving || rows.length === 0}
+            className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white disabled:opacity-60"
+          >
+            {saving ? t('common.saving') : `💾 ${t('common.saveAll')}`}
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-3 bg-white">

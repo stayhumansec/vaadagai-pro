@@ -47,6 +47,7 @@ export const getHouse = (id: number) => api.get<House>(`/houses/${id}`).then((r)
 export const createHouse = (data: Partial<House>) => api.post<House>('/houses', data).then((r) => r.data);
 export const updateHouse = (id: number, data: Partial<House>) =>
   api.put<House>(`/houses/${id}`, data).then((r) => r.data);
+export const deleteHouse = (id: number) => api.delete<{ success: boolean }>(`/houses/${id}`).then((r) => r.data);
 export const getTenantHistory = (id: number) =>
   api.get<TenantHistoryEntry[]>(`/houses/${id}/tenant-history`).then((r) => r.data);
 export const addNewTenant = (
@@ -70,7 +71,9 @@ export const getRecord = (house: number, month: string) =>
   api.get<RentRecord>(`/records/${house}/${month}`).then((r) => r.data);
 export const saveRecord = (data: Partial<RentRecord>) => api.post<RentRecord>('/records', data).then((r) => r.data);
 export const saveRecordsBulk = (data: Partial<RentRecord>[]) =>
-  api.post<RentRecord[]>('/records/bulk', data).then((r) => r.data);
+  api
+    .post<{ saved: number; errors: { row: number; error: string }[] }>('/records/bulk', data)
+    .then((r) => r.data);
 export const autoGenerateRecords = (month: string, house_ids?: number[]) =>
   api.post<AutoGenerateResult>('/records/auto-generate', { month, house_ids }).then((r) => r.data);
 export const deleteRecord = (id: number) => api.delete<{ success: boolean }>(`/records/${id}`).then((r) => r.data);

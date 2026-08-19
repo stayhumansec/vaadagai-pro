@@ -75,16 +75,69 @@ router.put('/:id', auth, (req, res) => {
     if (req.body[field] !== undefined) updated[field] = req.body[field];
   }
 
-  db.prepare(`
-    UPDATE houses SET
-      name = @name, phone = @phone, default_rent = @default_rent, water = @water,
-      maintenance = @maintenance, members = @members, eb_rate = @eb_rate,
-      proof_type = @proof_type, proof_number = @proof_number,
-      move_in_date = @move_in_date, move_out_date = @move_out_date, status = @status
-    WHERE id = @id
-  `).run(updated);
+  const today = new Date().toISOString().slice(0, 10);
+  const nameChanged = house.name && String(updated.name).trim() !== String(house.name).trim();
+  const rentChanged =
+    Number(updated.default_rent) !== Number(house.default_rent) ||
+    Number(updated.water) !== Number(house.water) ||
+    Number(updated.maintenance) !== Number(house.maintenance) ||
+    Number(updated.eb_rate) !== Number(house.eb_rate);
+
+  const run = db.transaction(() => {
+    // A different name on the same house means a new occupant has moved in --
+    // archive the outgoing tenant's details before overwriting them, same as
+    // the explicit "new tenant" flow does.
+    if (nameChanged) {
+      db.prepare(`
+        INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, today);
+    }
+
+    db.prepare(`
+      UPDATE houses SET
+        name = @name, phone = @phone, default_rent = @default_rent, water = @water,
+        maintenance = @maintenance, members = @members, eb_rate = @eb_rate,
+        proof_type = @proof_type, proof_number = @proof_number,
+        move_in_date = @move_in_date, move_out_date = @move_out_date, status = @status
+      WHERE id = @id
+    `).run(updated);
+
+    // Any rent/water/maintenance/EB-rate change made here is a real revision --
+    // log it to rent_history so it shows up alongside revisions added from the
+    // Rent History page, instead of silently overwriting the house row.
+    if (rentChanged) {
+      const effectiveFrom = today.slice(0, 7);
+      db.prepare(`
+        INSERT INTO rent_history (house_id, effective_from, rent, water, maintenance, eb_rate, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(updated.id, effectiveFrom, updated.default_rent, updated.water, updated.maintenance, updated.eb_rate, 'Updated from Tenant page');
+    }
+  });
+  run();
 
   res.json(db.prepare('SELECT * FROM houses WHERE id = ?').get(req.params.id));
+});
+
+router.delete('/:id', auth, (req, res) => {
+  const ownerEmail = db.prepare("SELECT value FROM settings WHERE key = 'owner_email'").get()?.value;
+  if (!ownerEmail || req.user.email?.toLowerCase() !== ownerEmail) {
+    return res.status(403).json({ error: 'Only the owner can delete a tenant' });
+  }
+
+  const house = db.prepare('SELECT id FROM houses WHERE id = ?').get(req.params.id);
+  if (!house) return res.status(404).json({ error: 'House not found' });
+
+  const run = db.transaction(() => {
+    db.prepare('DELETE FROM records WHERE house_id = ?').run(house.id);
+    db.prepare('DELETE FROM eb_readings WHERE house_id = ?').run(house.id);
+    db.prepare('DELETE FROM rent_history WHERE house_id = ?').run(house.id);
+    db.prepare('DELETE FROM tenant_history WHERE house_id = ?').run(house.id);
+    db.prepare('DELETE FROM houses WHERE id = ?').run(house.id);
+  });
+  run();
+
+  res.json({ success: true });
 });
 
 router.get('/:id/tenant-history', auth, (req, res) => {

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../components/Modal';
-import { addNewTenant, createHouse, getHouses, getRecords, getRentHistory, getTenantHistory, updateHouse, uploadHouseProof } from '../api';
+import { addNewTenant, createHouse, deleteHouse, getHouses, getRecords, getRentHistory, getSettings, getTenantHistory, updateHouse, uploadHouseProof } from '../api';
 import type { House, HouseStatus, RentHistoryEntry, RentRecord, TenantHistoryEntry } from '../types';
 import { fmt, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 
 interface NewTenantForm {
   name: string;
@@ -62,6 +63,7 @@ function toForm(house: House): HouseForm {
 export function Tenants() {
   const { showToast } = useToast();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<RentRecord[]>([]);
   const [editing, setEditing] = useState<HouseForm | null>(null);
@@ -69,10 +71,12 @@ export function Tenants() {
   const [tenantHistory, setTenantHistory] = useState<TenantHistoryEntry[]>([]);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [newTenantMode, setNewTenantMode] = useState(false);
   const [newTenantForm, setNewTenantForm] = useState<NewTenantForm>(emptyNewTenantForm());
   const [startingNewTenant, setStartingNewTenant] = useState(false);
   const [addingHouse, setAddingHouse] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
 
   const load = async () => {
     const [houseList, recordList] = await Promise.all([getHouses(), getRecords({})]);
@@ -81,6 +85,13 @@ export function Tenants() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!user?.email) return;
+    getSettings()
+      .then((s) => setIsOwner(!!s.owner_email && s.owner_email === user.email.toLowerCase()))
+      .catch(() => {});
+  }, [user?.email]);
 
   const activeCount = houses.filter((h) => h.status === 'Active').length;
   const inactiveCount = houses.length - activeCount;
@@ -173,6 +184,22 @@ export function Tenants() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!editing) return;
+    if (!window.confirm(t('tenants.deleteConfirm'))) return;
+    setDeleting(true);
+    try {
+      await deleteHouse(editing.id);
+      showToast(t('tenants.deleted'), 'ok');
+      closeEdit();
+      load();
+    } catch {
+      showToast(t('tenants.deleteFailed'), 'err');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -230,6 +257,16 @@ export function Tenants() {
           onClose={closeEdit}
           footer={
             <>
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="mr-auto rounded-lg border border-brand-red px-4 py-2 text-sm text-brand-red hover:bg-brand-red/10 disabled:opacity-60"
+                >
+                  {deleting ? t('common.saving') : t('tenants.delete')}
+                </button>
+              )}
               <button type="button" onClick={closeEdit} className="rounded-lg border border-gray-3 px-4 py-2 text-sm">
                 {t('common.cancel')}
               </button>
@@ -495,38 +532,39 @@ export function Tenants() {
               </div>
             )}
 
-            {tenantHistory.length > 0 && (
-              <div>
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-sm font-medium text-navy">{t('tenants.previousTenants')}</p>
-                  <Link to={`/rent-history?house=${editing.id}`} className="text-xs text-brand-blue hover:underline">
-                    {t('rentHistory.viewTenantHistory')}
-                  </Link>
-                </div>
-                <div className="overflow-x-auto rounded-lg border border-gray-3">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-gray-3 text-gray">
-                        <th className="px-2 py-1">{t('common.name')}</th>
-                        <th className="px-2 py-1">{t('common.phone')}</th>
-                        <th className="px-2 py-1">{t('tenants.moveInDate')}</th>
-                        <th className="px-2 py-1">{t('tenants.moveOutDate')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tenantHistory.map((entry) => (
-                        <tr key={entry.id} className="border-b border-gray-3 last:border-0">
-                          <td className="px-2 py-1">{entry.name}</td>
-                          <td className="px-2 py-1">{entry.phone ?? '—'}</td>
-                          <td className="px-2 py-1">{entry.move_in_date ?? '—'}</td>
-                          <td className="px-2 py-1">{entry.move_out_date ?? '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <p className="text-sm font-medium text-navy">{t('tenants.previousTenants')}</p>
+                <Link to={`/rent-history?house=${editing.id}`} className="text-xs text-brand-blue hover:underline">
+                  {t('rentHistory.viewTenantHistory')}
+                </Link>
               </div>
-            )}
+              <div className="overflow-x-auto rounded-lg border border-gray-3">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-3 text-gray">
+                      <th className="px-2 py-1">{t('common.name')}</th>
+                      <th className="px-2 py-1">{t('common.phone')}</th>
+                      <th className="px-2 py-1">{t('tenants.moveInDate')}</th>
+                      <th className="px-2 py-1">{t('tenants.moveOutDate')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tenantHistory.map((entry) => (
+                      <tr key={entry.id} className="border-b border-gray-3 last:border-0">
+                        <td className="px-2 py-1">{entry.name}</td>
+                        <td className="px-2 py-1">{entry.phone ?? '—'}</td>
+                        <td className="px-2 py-1">{entry.move_in_date ?? '—'}</td>
+                        <td className="px-2 py-1">{entry.move_out_date ?? '—'}</td>
+                      </tr>
+                    ))}
+                    {tenantHistory.length === 0 && (
+                      <tr><td colSpan={4} className="px-2 py-4 text-center text-gray">{t('common.noRecords')}</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </Modal>
       )}

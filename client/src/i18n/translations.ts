@@ -95,6 +95,14 @@ export const translations: Dict = {
 
   // Bulk
   'bulk.received': { ta: 'வசூல்', en: 'Received' },
+  'bulk.downloadTemplate': { ta: '📥 மாதிரி Excel பதிவிறக்கு', en: '📥 Download Sample Excel' },
+  'bulk.uploadPast': { ta: '📤 பழைய வாடகை பதிவேற்று', en: '📤 Upload Past Rentals' },
+  'bulk.noDataInFile': { ta: 'கோப்பில் தரவு இல்லை', en: 'No data in file' },
+  'bulk.fileReadFailed': { ta: 'கோப்பை படிக்க முடியவில்லை', en: 'Could not read the file' },
+  'bulk.templateDownloadFailed': { ta: 'மாதிரி கோப்பை பதிவிறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.', en: 'Could not download the sample file. Please try again.' },
+  'bulk.uploaded': { ta: 'பதிவுகள் பதிவேற்றப்பட்டன', en: 'records uploaded' },
+  'bulk.savedWithErrors': { ta: 'பதிவுகள் சேமிக்கப்பட்டன', en: 'records saved' },
+  'bulk.rowErrors': { ta: 'வரிசைகளில் பிழை (வரிசை', en: 'rows had errors (row' },
 
   // Ledger
   'ledger.from': { ta: 'தொடக்க மாதம்', en: 'From Month' },
@@ -148,7 +156,11 @@ export const translations: Dict = {
   'tenants.proofType': { ta: 'ஆவண வகை', en: 'Proof Type' },
   'tenants.proofNumber': { ta: 'ஆவண எண்', en: 'Proof Number' },
   'tenants.proofFile': { ta: 'ஆவண கோப்பு', en: 'Proof File' },
-  'tenants.rentHistoryHint': { ta: 'வாடகை மாற்றங்களை வாடகை வரலாறு-ல் பதிவு செய்யவும்', en: 'Record rent changes in Rent History' },
+  'tenants.rentHistoryHint': { ta: 'வாடகை, தண்ணீர் அல்லது பராமரிப்பு மாற்றங்கள் தானாக வாடகை வரலாறு-ல் பதிவாகும்.', en: 'Rent, water, or maintenance changes here are automatically recorded in Rent History.' },
+  'tenants.delete': { ta: '🗑️ இந்த வீட்டை நீக்கு', en: '🗑️ Delete This Tenant' },
+  'tenants.deleteConfirm': { ta: 'இந்த வீட்டையும் அதன் அனைத்து பதிவுகள், வாடகை வரலாறு, குடியிருப்பாளர் வரலாறையும் நிரந்தரமாக நீக்க வேண்டுமா? இதை மீட்டெடுக்க முடியாது.', en: 'Permanently delete this tenant, along with all its records, rent history, and tenant history? This cannot be undone.' },
+  'tenants.deleted': { ta: 'வீடு நீக்கப்பட்டது', en: 'Tenant deleted' },
+  'tenants.deleteFailed': { ta: 'நீக்க முடியவில்லை', en: 'Could not delete' },
   'tenants.rentHistoryTitle': { ta: 'வாடகை வரலாறு', en: 'Rent History' },
   'tenants.newTenantToggleOn': { ta: '🔄 புதிய குடியிருப்பாளர் — தற்போதைய குடியிருப்பாளரை வரலாற்றில் சேமித்து மாற்றவும்', en: '🔄 New Tenant — archive the current tenant and replace them' },
   'tenants.newTenantToggleOff': { ta: '✕ புதிய குடியிருப்பாளர் ரத்து', en: '✕ Cancel New Tenant' },
