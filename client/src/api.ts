@@ -48,6 +48,10 @@ export const createHouse = (data: Partial<House>) => api.post<House>('/houses', 
 export const updateHouse = (id: number, data: Partial<House>) =>
   api.put<House>(`/houses/${id}`, data).then((r) => r.data);
 export const deleteHouse = (id: number) => api.delete<{ success: boolean }>(`/houses/${id}`).then((r) => r.data);
+export const updateHousesBulk = (data: ({ house_id: number } & Partial<House>)[]) =>
+  api
+    .post<{ saved: number; errors: { row: number; error: string }[] }>('/houses/bulk', data)
+    .then((r) => r.data);
 export const getTenantHistory = (id: number) =>
   api.get<TenantHistoryEntry[]>(`/houses/${id}/tenant-history`).then((r) => r.data);
 export const addNewTenant = (

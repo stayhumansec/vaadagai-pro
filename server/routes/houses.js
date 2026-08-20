@@ -66,13 +66,15 @@ router.get('/:id', auth, (req, res) => {
   res.json(house);
 });
 
-router.put('/:id', auth, (req, res) => {
-  const house = db.prepare('SELECT * FROM houses WHERE id = ?').get(req.params.id);
-  if (!house) return res.status(404).json({ error: 'House not found' });
-
+// Applies a partial house update, archiving the outgoing tenant into
+// tenant_history if the name changed and logging a rent_history revision if
+// rent/water/maintenance/eb_rate changed. Shared by the single-house PUT and
+// the bulk-upload route so both get the same auto-history behavior. Must be
+// called from inside a db.transaction.
+function applyHouseUpdate(house, fields, note) {
   const updated = { ...house };
   for (const field of HOUSE_FIELDS) {
-    if (req.body[field] !== undefined) updated[field] = req.body[field];
+    if (fields[field] !== undefined) updated[field] = fields[field];
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -83,40 +85,70 @@ router.put('/:id', auth, (req, res) => {
     Number(updated.maintenance) !== Number(house.maintenance) ||
     Number(updated.eb_rate) !== Number(house.eb_rate);
 
-  const run = db.transaction(() => {
-    // A different name on the same house means a new occupant has moved in --
-    // archive the outgoing tenant's details before overwriting them, same as
-    // the explicit "new tenant" flow does.
-    if (nameChanged) {
-      db.prepare(`
-        INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, today);
-    }
-
+  // A different name on the same house means a new occupant has moved in --
+  // archive the outgoing tenant's details before overwriting them, same as
+  // the explicit "new tenant" flow does.
+  if (nameChanged) {
     db.prepare(`
-      UPDATE houses SET
-        name = @name, phone = @phone, default_rent = @default_rent, water = @water,
-        maintenance = @maintenance, members = @members, eb_rate = @eb_rate,
-        proof_type = @proof_type, proof_number = @proof_number,
-        move_in_date = @move_in_date, move_out_date = @move_out_date, status = @status
-      WHERE id = @id
-    `).run(updated);
+      INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, today);
+  }
 
-    // Any rent/water/maintenance/EB-rate change made here is a real revision --
-    // log it to rent_history so it shows up alongside revisions added from the
-    // Rent History page, instead of silently overwriting the house row.
-    if (rentChanged) {
-      const effectiveFrom = today.slice(0, 7);
-      db.prepare(`
-        INSERT INTO rent_history (house_id, effective_from, rent, water, maintenance, eb_rate, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(updated.id, effectiveFrom, updated.default_rent, updated.water, updated.maintenance, updated.eb_rate, 'Updated from Tenant page');
+  db.prepare(`
+    UPDATE houses SET
+      name = @name, phone = @phone, default_rent = @default_rent, water = @water,
+      maintenance = @maintenance, members = @members, eb_rate = @eb_rate,
+      proof_type = @proof_type, proof_number = @proof_number,
+      move_in_date = @move_in_date, move_out_date = @move_out_date, status = @status
+    WHERE id = @id
+  `).run(updated);
+
+  // Any rent/water/maintenance/EB-rate change made here is a real revision --
+  // log it to rent_history so it shows up alongside revisions added from the
+  // Rent History page, instead of silently overwriting the house row.
+  if (rentChanged) {
+    const effectiveFrom = today.slice(0, 7);
+    db.prepare(`
+      INSERT INTO rent_history (house_id, effective_from, rent, water, maintenance, eb_rate, note)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(updated.id, effectiveFrom, updated.default_rent, updated.water, updated.maintenance, updated.eb_rate, note);
+  }
+
+  return db.prepare('SELECT * FROM houses WHERE id = ?').get(house.id);
+}
+
+router.put('/:id', auth, (req, res) => {
+  const house = db.prepare('SELECT * FROM houses WHERE id = ?').get(req.params.id);
+  if (!house) return res.status(404).json({ error: 'House not found' });
+
+  const run = db.transaction(() => applyHouseUpdate(house, req.body, 'Updated from Tenant page'));
+  res.json(run());
+});
+
+router.post('/bulk', auth, (req, res) => {
+  if (!Array.isArray(req.body)) return res.status(400).json({ error: 'Body must be an array of tenant rows' });
+
+  const errors = [];
+  const valid = [];
+  req.body.forEach((r, i) => {
+    if (!r.house_id) {
+      errors.push({ row: i + 1, error: 'house_id is required' });
+      return;
     }
+    const house = db.prepare('SELECT * FROM houses WHERE id = ?').get(r.house_id);
+    if (!house) {
+      errors.push({ row: i + 1, error: `house_id ${r.house_id} not found` });
+      return;
+    }
+    valid.push({ house, fields: r });
   });
-  run();
 
-  res.json(db.prepare('SELECT * FROM houses WHERE id = ?').get(req.params.id));
+  const run = db.transaction((rows) =>
+    rows.map(({ house, fields }) => applyHouseUpdate(house, fields, 'Updated from bulk tenant upload'))
+  );
+  const saved = run(valid);
+  res.json({ saved: saved.length, errors });
 });
 
 router.delete('/:id', auth, (req, res) => {
