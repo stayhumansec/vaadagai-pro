@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import { getHouses, getRecords } from '../api';
-import type { House, RentRecord } from '../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import html2canvas from 'html2canvas';
+import { ReceiptCard } from '../components/ReceiptCard';
+import { getEBReadings, getHouses, getRecords } from '../api';
+import type { EBReading, House, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
 interface DueHouse {
   house: House;
+  record: RentRecord | null;
+  ebReading: EBReading | null;
   balance: number;
   munBakki: number;
   status: string;
@@ -39,29 +43,35 @@ export function WhatsApp() {
   const [sentIds, setSentIds] = useState<Set<number>>(new Set());
   const [queueActive, setQueueActive] = useState(false);
   const [queueIndex, setQueueIndex] = useState(0);
+  const receiptRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const load = async () => {
     setLoading(true);
     setSentIds(new Set());
     setQueueActive(false);
     try {
-      const [houses, records, prevRecords] = await Promise.all([
+      const [houses, records, prevRecords, ebReadings] = await Promise.all([
         getHouses(),
         getRecords({ month_from: month, month_to: month }),
         getRecords({ month_from: prevYM(month), month_to: prevYM(month) }),
+        getEBReadings({ year: month.slice(0, 4) }),
       ]);
 
       const recordMap: Record<number, RentRecord> = {};
       records.forEach((r) => { recordMap[r.house_id] = r; });
       const prevMap: Record<number, RentRecord> = {};
       prevRecords.forEach((r) => { prevMap[r.house_id] = r; });
+      const ebMap: Record<number, EBReading> = {};
+      ebReadings.filter((e) => e.month === month).forEach((e) => { ebMap[e.house_id] = e; });
 
       const due = houses
         .filter((h) => h.status === 'Active')
         .map((house) => {
-          const record = recordMap[house.id];
+          const record = recordMap[house.id] ?? null;
           return {
             house,
+            record,
+            ebReading: ebMap[house.id] ?? null,
             balance: record?.balance ?? house.default_rent,
             munBakki: record?.mun_bakki ?? prevMap[house.id]?.balance ?? 0,
             status: record?.pay_status ?? 'none',
@@ -86,10 +96,47 @@ export function WhatsApp() {
     }
   };
 
-  // WhatsApp's click-to-chat links can't be sent programmatically -- each one
-  // still needs a real click to open and a manual tap to send in WhatsApp.
-  // "Send All" turns that into a guided one-at-a-time queue instead of
-  // hunting for each house's button across the grid.
+  // WhatsApp's click-to-chat links can't be sent programmatically -- there's
+  // no API to push a message (with or without an attachment) straight into a
+  // chat. The best available option is the Web Share API: when a receipt
+  // exists for this house/month, render it off-screen, rasterize it, and
+  // hand the image + message to WhatsApp via the native share sheet on
+  // supporting mobile browsers, so it lands in the chat as one photo message
+  // with the reminder text as its caption -- one tap away from actually
+  // sending. Browsers that can't share files (mainly desktop) fall back to
+  // downloading the image and opening WhatsApp with just the text pre-filled.
+  const shareWithReceipt = async (due: DueHouse) => {
+    const text = buildMessage(due, month);
+    const el = due.record ? receiptRefs.current[due.house.id] : null;
+
+    if (el) {
+      try {
+        const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#fff' });
+        const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+        if (blob) {
+          const file = new File([blob], `receipt_${month}_house${due.house.id}.png`, { type: 'image/png' });
+          if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({ files: [file], text });
+            return;
+          }
+          const a = document.createElement('a');
+          a.href = canvas.toDataURL('image/png');
+          a.download = file.name;
+          a.click();
+          window.open(waLink(due, month), '_blank', 'noreferrer');
+          showToast(t('whatsapp.shareFallbackHint'), 'warn');
+          return;
+        }
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return; // user cancelled the share sheet
+      }
+    }
+
+    // No recorded payment yet for this house/month -- nothing to show a
+    // receipt for, so just open the text reminder.
+    window.open(waLink(due, month), '_blank', 'noreferrer');
+  };
+
   const queue = useMemo(() => dueHouses.filter((d) => d.house.phone), [dueHouses]);
   const noPhoneCount = dueHouses.length - queue.length;
   const current = queue[queueIndex];
@@ -112,10 +159,10 @@ export function WhatsApp() {
     });
   };
 
-  const openCurrentAndAdvance = () => {
+  const sendCurrentAndAdvance = async () => {
     if (!current) return;
     setSentIds((prev) => new Set(prev).add(current.house.id));
-    window.open(waLink(current, month), '_blank', 'noreferrer');
+    await shareWithReceipt(current);
     advanceQueue();
   };
 
@@ -170,7 +217,7 @@ export function WhatsApp() {
           <div className="mt-3 flex gap-2">
             <button
               type="button"
-              onClick={openCurrentAndAdvance}
+              onClick={sendCurrentAndAdvance}
               className="inline-flex items-center gap-1 rounded-lg bg-brand-green px-3 py-1.5 text-sm text-white hover:opacity-90"
             >
               💬 {t('whatsapp.openAndNext')}
@@ -203,15 +250,16 @@ export function WhatsApp() {
 
               <div className="mt-3">
                 {due.house.phone ? (
-                  <a
-                    href={waLink(due, month)}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => setSentIds((prev) => new Set(prev).add(due.house.id))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSentIds((prev) => new Set(prev).add(due.house.id));
+                      shareWithReceipt(due);
+                    }}
                     className="inline-flex items-center gap-1 rounded-lg bg-brand-green px-3 py-1.5 text-sm text-white hover:opacity-90"
                   >
                     💬 WhatsApp
-                  </a>
+                  </button>
                 ) : (
                   <button
                     type="button"
@@ -225,6 +273,18 @@ export function WhatsApp() {
             </div>
           );
         })}
+      </div>
+
+      <div className="fixed left-[-9999px] top-0">
+        {dueHouses.filter((d) => d.record).map((d) => (
+          <ReceiptCard
+            key={d.house.id}
+            ref={(el) => { receiptRefs.current[d.house.id] = el; }}
+            house={d.house}
+            record={d.record!}
+            ebReading={d.ebReading}
+          />
+        ))}
       </div>
     </div>
   );
