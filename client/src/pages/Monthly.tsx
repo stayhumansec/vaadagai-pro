@@ -21,7 +21,9 @@ interface EntryForm {
 export function Monthly() {
   const { showToast } = useToast();
   const { t } = useLanguage();
-  const [month, setMonth] = useState(todayYM());
+  // This month's rent is normally only settled and recorded next month, so
+  // default to last month's data instead of an always-empty current one.
+  const [month, setMonth] = useState(prevYM(todayYM()));
   const [houses, setHouses] = useState<House[]>([]);
   const [rentHistory, setRentHistory] = useState<RentHistoryEntry[]>([]);
   const [records, setRecords] = useState<Record<number, RentRecord>>({});

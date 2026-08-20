@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { deleteRecord, getHouses, getRecords, getSettings } from '../api';
 import type { House, RentRecord } from '../types';
-import { fmt, mlabel, todayYM } from '../utils';
+import { fmt, mlabel, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -13,8 +13,10 @@ export function Ledger() {
   const { user } = useAuth();
   const [houses, setHouses] = useState<House[]>([]);
   const [houseFilter, setHouseFilter] = useState<number | 'all'>('all');
-  const [monthFrom, setMonthFrom] = useState(todayYM());
-  const [monthTo, setMonthTo] = useState(todayYM());
+  // This month's rent is normally only settled and recorded next month, so
+  // default to last month's data instead of an always-empty current one.
+  const [monthFrom, setMonthFrom] = useState(prevYM(todayYM()));
+  const [monthTo, setMonthTo] = useState(prevYM(todayYM()));
   const [records, setRecords] = useState<RentRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
