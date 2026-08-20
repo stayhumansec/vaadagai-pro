@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import html2canvas from 'html2canvas';
 import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
 import { HouseCardSkeleton, MetricCardSkeleton, Skeleton } from '../components/Skeleton';
 import { Reveal } from '../components/Reveal';
-import { getDashboardSummary, getHouses, getRecords } from '../api';
-import type { DashboardSummary, House, RentRecord } from '../types';
+import { Modal } from '../components/Modal';
+import { ReceiptCard } from '../components/ReceiptCard';
+import { getDashboardSummary, getEBReadings, getHouses, getRecords } from '../api';
+import type { DashboardSummary, EBReading, House, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
+import { shareImageViaWhatsApp } from '../lib/whatsappShare';
+import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
 function progressColor(pct: number): string {
@@ -16,27 +21,39 @@ function progressColor(pct: number): string {
 
 export function Dashboard() {
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<Record<number, RentRecord>>({});
+  const [ebReadings, setEbReadings] = useState<Record<number, EBReading>>({});
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedHouseId, setSelectedHouseId] = useState<number | null>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   // This month's rent is normally only settled and recorded next month, so
   // default to last month's data instead of an always-empty current one.
-  const month = prevYM(todayYM());
+  const [month, setMonth] = useState(prevYM(todayYM()));
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
-    Promise.all([getHouses(), getRecords({ month_from: month, month_to: month }), getDashboardSummary(month)])
-      .then(([houseList, recordList, dashboardSummary]) => {
+    Promise.all([
+      getHouses(),
+      getRecords({ month_from: month, month_to: month }),
+      getDashboardSummary(month),
+      getEBReadings({ year: month.slice(0, 4) }),
+    ])
+      .then(([houseList, recordList, dashboardSummary, ebList]) => {
         if (cancelled) return;
         setHouses(houseList);
         const byHouse: Record<number, RentRecord> = {};
         recordList.forEach((r) => { byHouse[r.house_id] = r; });
         setRecords(byHouse);
+        const ebByHouse: Record<number, EBReading> = {};
+        ebList.filter((e) => e.month === month).forEach((e) => { ebByHouse[e.house_id] = e; });
+        setEbReadings(ebByHouse);
         setSummary(dashboardSummary);
         setConnected(true);
       })
@@ -58,10 +75,30 @@ export function Dashboard() {
     return !record || record.pay_status !== 'full';
   });
 
+  const selectedHouse = houses.find((h) => h.id === selectedHouseId);
+  const selectedRecord = selectedHouseId ? records[selectedHouseId] : undefined;
+
+  const shareReceipt = async () => {
+    if (!receiptRef.current || !selectedHouse) return;
+    try {
+      const canvas = await html2canvas(receiptRef.current, { scale: 2, backgroundColor: '#fff' });
+      const caption = `${t('receipt.title')} — ${t('common.house')} ${selectedHouse.id} — ${mlabel(month, language)}`;
+      const result = await shareImageViaWhatsApp(canvas, `receipt_${month}_house${selectedHouse.id}.png`, caption, selectedHouse.phone);
+      if (result === 'fallback') showToast(t('receipt.shareFallbackHint'), 'warn');
+    } catch {
+      showToast(t('receipt.shareFailed'), 'err');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-3/70 bg-white px-4 py-3 text-sm shadow-soft">
-        <span className="font-medium text-navy">{mlabel(month, language)}</span>
+        <input
+          type="month"
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          className="rounded-lg border border-gray-3 px-3 py-1.5 text-sm"
+        />
         <span className="flex items-center gap-1 text-gray">
           <span className={`h-2 w-2 rounded-full transition-colors ${connected ? 'bg-brand-green' : connected === false ? 'bg-brand-red' : 'bg-gray-3'}`} />
           {connected ? t('dashboard.connected') : connected === false ? t('dashboard.disconnected') : t('dashboard.checking')}
@@ -112,6 +149,7 @@ export function Dashboard() {
                     status={status}
                     amount={record?.total}
                     munBakki={record?.mun_bakki}
+                    onClick={() => setSelectedHouseId(house.id)}
                   />
                 );
               })}
@@ -180,6 +218,29 @@ export function Dashboard() {
           </div>
         )}
       </Reveal>
+
+      {selectedHouse && (
+        <Modal title={`${t('common.house')} ${selectedHouse.id} — ${selectedHouse.name}`} onClose={() => setSelectedHouseId(null)}>
+          {selectedRecord ? (
+            <>
+              <div className="flex justify-center">
+                <ReceiptCard ref={receiptRef} house={selectedHouse} record={selectedRecord} ebReading={ebReadings[selectedHouse.id] ?? null} />
+              </div>
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={shareReceipt}
+                  className="inline-flex items-center gap-1 rounded-lg bg-brand-green px-4 py-2 text-sm text-white hover:opacity-90"
+                >
+                  💬 {t('receipt.shareWhatsApp')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="py-6 text-center text-sm text-brand-red">{t('receipt.noRecord')}</p>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

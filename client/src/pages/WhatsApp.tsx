@@ -4,6 +4,7 @@ import { ReceiptCard } from '../components/ReceiptCard';
 import { getEBReadings, getHouses, getRecords } from '../api';
 import type { EBReading, House, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
+import { shareImageViaWhatsApp } from '../lib/whatsappShare';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -112,23 +113,11 @@ export function WhatsApp() {
     if (el) {
       try {
         const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#fff' });
-        const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-        if (blob) {
-          const file = new File([blob], `receipt_${month}_house${due.house.id}.png`, { type: 'image/png' });
-          if (navigator.canShare?.({ files: [file] })) {
-            await navigator.share({ files: [file], text });
-            return;
-          }
-          const a = document.createElement('a');
-          a.href = canvas.toDataURL('image/png');
-          a.download = file.name;
-          a.click();
-          window.open(waLink(due, month), '_blank', 'noreferrer');
-          showToast(t('whatsapp.shareFallbackHint'), 'warn');
-          return;
-        }
-      } catch (err) {
-        if ((err as Error)?.name === 'AbortError') return; // user cancelled the share sheet
+        const result = await shareImageViaWhatsApp(canvas, `receipt_${month}_house${due.house.id}.png`, text, due.house.phone);
+        if (result === 'fallback') showToast(t('whatsapp.shareFallbackHint'), 'warn');
+        return;
+      } catch {
+        // fall through to the plain text reminder below
       }
     }
 
