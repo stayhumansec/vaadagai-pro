@@ -29,6 +29,23 @@ export async function downloadExcel(sheets: ExcelSheet[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// Excel silently reinterprets a typed value like "2023-01" or "2026-08-19" as
+// a real date cell rather than text, and ExcelJS then hands that cell back as
+// a JS Date. Format it as a plain YYYY-MM-DD string (using UTC getters, since
+// Excel dates carry no timezone and ExcelJS parses them at UTC midnight) so
+// every downstream "YYYY-MM"/"YYYY-MM-DD" parser sees the text it expects
+// instead of a Date's default toString().
+function cellValueToString(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) {
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(value.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(value).trim();
+}
+
 export async function readExcelSheet(file: File): Promise<Record<string, string>[]> {
   const buffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
@@ -39,7 +56,7 @@ export async function readExcelSheet(file: File): Promise<Record<string, string>
   const headerRow = sheet.getRow(1);
   const headers: string[] = [];
   headerRow.eachCell({ includeEmpty: false }, (cell, col) => {
-    headers[col] = String(cell.value ?? '').trim();
+    headers[col] = cellValueToString(cell.value);
   });
 
   const rows: Record<string, string>[] = [];
@@ -50,8 +67,7 @@ export async function readExcelSheet(file: File): Promise<Record<string, string>
     row.eachCell({ includeEmpty: false }, (cell, col) => {
       const header = headers[col];
       if (!header) return;
-      const value = cell.value;
-      record[header] = value === null || value === undefined ? '' : String(value).trim();
+      record[header] = cellValueToString(cell.value);
       if (record[header]) hasValue = true;
     });
     if (hasValue) rows.push(record);
