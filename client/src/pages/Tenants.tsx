@@ -1,12 +1,51 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../components/Modal';
-import { addNewTenant, createHouse, deleteHouse, getHouses, getRecords, getRentHistory, getSettings, getTenantHistory, updateHouse, uploadHouseProof } from '../api';
+import { addNewTenant, createHouse, deleteHouse, getHouses, getRecords, getRentHistory, getSettings, getTenantHistory, updateHouse, updateHousesBulk, uploadHouseProof } from '../api';
 import type { House, HouseStatus, RentHistoryEntry, RentRecord, TenantHistoryEntry } from '../types';
 import { fmt, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+
+const TENANT_UPLOAD_HEADERS = {
+  house: 'வீடு எண்',
+  name: 'பெயர்',
+  phone: 'தொலைபேசி',
+  members: 'உறுப்பினர்கள்',
+  rent: 'வாடகை',
+  water: 'தண்ணீர்',
+  maintenance: 'பராமரிப்பு',
+  ebRate: 'EB விலை',
+  moveIn: 'குடி வந்த தேதி',
+  moveOut: 'குடி வெளியேறிய தேதி',
+  status: 'நிலை (செயலில்/செயலற்றது)',
+  proofType: 'ஆவண வகை',
+  proofNumber: 'ஆவண எண்',
+};
+
+const TENANT_EXPORT_HEADERS = [
+  TENANT_UPLOAD_HEADERS.house, TENANT_UPLOAD_HEADERS.name, TENANT_UPLOAD_HEADERS.phone,
+  TENANT_UPLOAD_HEADERS.members, TENANT_UPLOAD_HEADERS.rent, TENANT_UPLOAD_HEADERS.water,
+  TENANT_UPLOAD_HEADERS.maintenance, TENANT_UPLOAD_HEADERS.ebRate, TENANT_UPLOAD_HEADERS.moveIn,
+  TENANT_UPLOAD_HEADERS.moveOut, TENANT_UPLOAD_HEADERS.status, TENANT_UPLOAD_HEADERS.proofType,
+  TENANT_UPLOAD_HEADERS.proofNumber,
+];
+
+function houseExportRow(h: House): (string | number)[] {
+  return [
+    h.id, h.name, h.phone ?? '', h.members, h.default_rent, h.water, h.maintenance, h.eb_rate,
+    h.move_in_date ?? '', h.move_out_date ?? '', h.status === 'Active' ? 'செயலில்' : 'செயலற்றது',
+    h.proof_type, h.proof_number ?? '',
+  ];
+}
+
+function parseStatus(v: string): HouseStatus | undefined {
+  const s = v.trim().toLowerCase();
+  if (['active', 'செயலில்'].includes(s)) return 'Active';
+  if (['inactive', 'செயலற்றது'].includes(s)) return 'Inactive';
+  return undefined;
+}
 
 interface NewTenantForm {
   name: string;
@@ -77,6 +116,10 @@ export function Tenants() {
   const [startingNewTenant, setStartingNewTenant] = useState(false);
   const [addingHouse, setAddingHouse] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     const [houseList, recordList] = await Promise.all([getHouses(), getRecords({})]);
@@ -85,6 +128,13 @@ export function Tenants() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    // Warm the exceljs chunk ahead of time so the download/upload buttons
+    // don't hit a slow first-import delay (which can cost the click its
+    // "user gesture" window on some mobile browsers and fail silently).
+    import('../lib/excel');
+  }, []);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -200,19 +250,147 @@ export function Tenants() {
     }
   };
 
+  const downloadTemplate = async () => {
+    setDownloadingTemplate(true);
+    try {
+      const { downloadExcel } = await import('../lib/excel');
+      const sample = houses[0];
+      await downloadExcel(
+        [
+          {
+            name: 'படிவம்',
+            headers: Object.values(TENANT_UPLOAD_HEADERS),
+            rows: sample ? [houseExportRow(sample)] : [],
+          },
+          {
+            name: 'வீடுகள்',
+            headers: ['வீடு எண்', 'பெயர்'],
+            rows: houses.map((h) => [h.id, h.name]),
+          },
+        ],
+        'tenants-bulk-template.xlsx'
+      );
+    } catch {
+      showToast(t('tenants.templateDownloadFailed'), 'err');
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { downloadExcel } = await import('../lib/excel');
+      await downloadExcel(
+        [{ name: 'குடியிருப்பாளர்கள்', headers: TENANT_EXPORT_HEADERS, rows: houses.map(houseExportRow) }],
+        'tenants-export.xlsx'
+      );
+    } catch {
+      showToast(t('tenants.exportFailed'), 'err');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleUploadFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const { readExcelSheet } = await import('../lib/excel');
+      const fileRows = await readExcelSheet(file);
+      const parsed = fileRows
+        .filter((r) => r[TENANT_UPLOAD_HEADERS.house])
+        .map((r) => {
+          const status = r[TENANT_UPLOAD_HEADERS.status] ? parseStatus(r[TENANT_UPLOAD_HEADERS.status]) : undefined;
+          const row: { house_id: number } & Partial<House> = { house_id: Number(r[TENANT_UPLOAD_HEADERS.house]) };
+          if (r[TENANT_UPLOAD_HEADERS.name]) row.name = r[TENANT_UPLOAD_HEADERS.name];
+          if (r[TENANT_UPLOAD_HEADERS.phone]) row.phone = r[TENANT_UPLOAD_HEADERS.phone];
+          if (r[TENANT_UPLOAD_HEADERS.members]) row.members = Number(r[TENANT_UPLOAD_HEADERS.members]);
+          if (r[TENANT_UPLOAD_HEADERS.rent]) row.default_rent = Number(r[TENANT_UPLOAD_HEADERS.rent]);
+          if (r[TENANT_UPLOAD_HEADERS.water]) row.water = Number(r[TENANT_UPLOAD_HEADERS.water]);
+          if (r[TENANT_UPLOAD_HEADERS.maintenance]) row.maintenance = Number(r[TENANT_UPLOAD_HEADERS.maintenance]);
+          if (r[TENANT_UPLOAD_HEADERS.ebRate]) row.eb_rate = Number(r[TENANT_UPLOAD_HEADERS.ebRate]);
+          if (r[TENANT_UPLOAD_HEADERS.moveIn]) row.move_in_date = r[TENANT_UPLOAD_HEADERS.moveIn];
+          if (r[TENANT_UPLOAD_HEADERS.proofType]) row.proof_type = r[TENANT_UPLOAD_HEADERS.proofType];
+          if (r[TENANT_UPLOAD_HEADERS.proofNumber]) row.proof_number = r[TENANT_UPLOAD_HEADERS.proofNumber];
+          if (status) {
+            row.status = status;
+            // An Active tenant can't also carry a move-out date -- clear it,
+            // same invariant the single-house edit form enforces.
+            row.move_out_date = status === 'Active' ? null : r[TENANT_UPLOAD_HEADERS.moveOut] || null;
+          } else if (r[TENANT_UPLOAD_HEADERS.moveOut]) {
+            row.move_out_date = r[TENANT_UPLOAD_HEADERS.moveOut];
+          }
+          return row;
+        });
+      if (parsed.length === 0) {
+        showToast(t('tenants.noDataInFile'), 'warn');
+        return;
+      }
+      const result = await updateHousesBulk(parsed);
+      showToast(
+        result.errors.length
+          ? `${result.saved} ${t('tenants.savedWithErrors')}, ${result.errors.length} ${t('tenants.rowErrors')} ${result.errors.map((e) => e.row).join(', ')})`
+          : `${result.saved} ${t('tenants.uploaded')}`,
+        result.errors.length ? 'warn' : 'ok'
+      );
+      load();
+    } catch {
+      showToast(t('tenants.fileReadFailed'), 'err');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-full bg-brand-green/15 px-3 py-1 text-sm text-brand-green">{t('common.active')} {activeCount}</span>
         <span className="rounded-full bg-gray-3 px-3 py-1 text-sm text-gray">{t('common.inactive')} {inactiveCount}</span>
-        <button
-          type="button"
-          onClick={handleAddHouse}
-          disabled={addingHouse}
-          className="ml-auto rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
-        >
-          {addingHouse ? t('common.saving') : t('tenants.addHouse')}
-        </button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={downloadTemplate}
+            disabled={downloadingTemplate}
+            className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
+          >
+            {downloadingTemplate ? t('common.downloading') : t('tenants.downloadTemplate')}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
+          >
+            {uploading ? t('common.uploading') : t('tenants.bulkUpload')}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUploadFile(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
+          >
+            {exporting ? t('common.downloading') : t('tenants.export')}
+          </button>
+          <button
+            type="button"
+            onClick={handleAddHouse}
+            disabled={addingHouse}
+            className="rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90 disabled:opacity-60"
+          >
+            {addingHouse ? t('common.saving') : t('tenants.addHouse')}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
