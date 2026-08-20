@@ -5,7 +5,7 @@ import { HouseCardSkeleton, MetricCardSkeleton, Skeleton } from '../components/S
 import { Reveal } from '../components/Reveal';
 import { getDashboardSummary, getHouses, getRecords } from '../api';
 import type { DashboardSummary, House, RentRecord } from '../types';
-import { fmt, mlabel, todayYM } from '../utils';
+import { fmt, mlabel, prevYM, todayYM } from '../utils';
 import { useLanguage } from '../context/LanguageContext';
 
 function progressColor(pct: number): string {
@@ -22,7 +22,9 @@ export function Dashboard() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const month = todayYM();
+  // This month's rent is normally only settled and recorded next month, so
+  // default to last month's data instead of an always-empty current one.
+  const month = prevYM(todayYM());
 
   useEffect(() => {
     let cancelled = false;
