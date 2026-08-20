@@ -125,6 +125,9 @@ export const translations: Dict = {
   'receipt.thanks': { ta: 'நன்றி!', en: 'Thank you!' },
   'receipt.noRecordsForMonth': { ta: 'இந்த மாதத்திற்கு பதிவுகள் இல்லை', en: 'No records for this month' },
   'receipt.allDownloaded': { ta: 'அனைத்து ரசீதுகளும் பதிவிறக்கப்பட்டன', en: 'All receipts downloaded' },
+  'receipt.shareWhatsApp': { ta: 'WhatsApp வழியாக அனுப்பு', en: 'Share via WhatsApp' },
+  'receipt.shareFallbackHint': { ta: 'ரசீது படமாக பதிவிறக்கப்பட்டது -- WhatsApp-ல் இணைத்து அனுப்பவும்.', en: 'Receipt downloaded as an image -- attach it in WhatsApp and send.' },
+  'receipt.shareFailed': { ta: 'பகிர முடியவில்லை', en: 'Could not share' },
 
   // EB Tracker
   'eb.newEntry': { ta: 'புதிய பதிவு', en: 'New Entry' },
@@ -195,6 +198,15 @@ export const translations: Dict = {
   'rentHistory.futureOnlyHint': { ta: 'இந்த திருத்தம் புதிய மாத பதிவுகளில் மட்டும் பயன்படும். பழைய பதிவுகள் மாறாது.', en: 'This revision only applies to new monthly entries. Past records are unchanged.' },
   'rentHistory.viewTenantHistory': { ta: '🔗 வாடகை வரலாற்றில் காண்க', en: '🔗 View in Rent History' },
   'rentHistory.selectHouseHint': { ta: 'குடியிருப்பாளர் வரலாற்றைக் காண ஒரு வீட்டைத் தேர்வு செய்யவும்.', en: 'Select a specific house above to see its previous tenants.' },
+
+  // WhatsApp
+  'whatsapp.sendAll': { ta: 'அனைவருக்கும் அனுப்பு', en: 'Send All' },
+  'whatsapp.sending': { ta: 'அனுப்புகிறது', en: 'Sending' },
+  'whatsapp.openAndNext': { ta: 'WhatsApp திற & அடுத்து', en: 'Open WhatsApp & Next' },
+  'whatsapp.skip': { ta: 'தவிர்', en: 'Skip' },
+  'whatsapp.sent': { ta: 'அனுப்பப்பட்டது', en: 'Sent' },
+  'whatsapp.allSent': { ta: 'அனைத்து நினைவூட்டல்களும் திறக்கப்பட்டன', en: 'All reminders opened' },
+  'whatsapp.noPhoneHint': { ta: 'வீடுகளுக்கு தொலைபேசி எண் இல்லை -- நகல் பயன்படுத்தவும்', en: 'houses have no phone number -- use Copy for them' },
 
   // Report
   'report.yearTotal': { ta: 'ஆண்டு மொத்தம்', en: 'Year Total' },

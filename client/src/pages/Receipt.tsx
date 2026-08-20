@@ -3,7 +3,7 @@ import html2canvas from 'html2canvas';
 import { ReceiptCard } from '../components/ReceiptCard';
 import { getEBReadings, getHouses, getRecord, getRecords } from '../api';
 import type { EBReading, House, RentRecord } from '../types';
-import { todayYM } from '../utils';
+import { mlabel, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -15,7 +15,7 @@ interface BulkQueueItem {
 
 export function Receipt() {
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [houses, setHouses] = useState<House[]>([]);
   const [houseId, setHouseId] = useState<number | null>(null);
   const [month, setMonth] = useState(todayYM());
@@ -56,6 +56,39 @@ export function Receipt() {
   };
 
   const printSingle = () => window.print();
+
+  const shareViaWhatsApp = async () => {
+    if (!receiptRef.current || !selectedHouse) return;
+    try {
+      const canvas = await html2canvas(receiptRef.current, { scale: 2, backgroundColor: '#fff' });
+      const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('canvas.toBlob failed');
+      const file = new File([blob], `receipt_${month}_house${selectedHouse.id}.png`, { type: 'image/png' });
+      const caption = `${t('receipt.title')} — ${t('common.house')} ${selectedHouse.id} — ${mlabel(month, language)}`;
+
+      // The WhatsApp click-to-chat link (wa.me) only supports a pre-filled
+      // text message, not an attached file -- there's no public API for
+      // that. The Web Share API is the only way to hand WhatsApp an image
+      // directly, and it's supported on mobile browsers (the primary way
+      // this app is used) but not most desktop browsers.
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], text: caption });
+        return;
+      }
+
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = file.name;
+      a.click();
+      const waUrl = selectedHouse.phone
+        ? `https://wa.me/91${selectedHouse.phone}?text=${encodeURIComponent(caption)}`
+        : `https://wa.me/?text=${encodeURIComponent(caption)}`;
+      window.open(waUrl, '_blank', 'noreferrer');
+      showToast(t('receipt.shareFallbackHint'), 'warn');
+    } catch (err) {
+      if ((err as Error)?.name !== 'AbortError') showToast(t('receipt.shareFailed'), 'err');
+    }
+  };
 
   const bulkDownload = async () => {
     const [records, ebList] = await Promise.all([
@@ -155,6 +188,9 @@ export function Receipt() {
             </button>
             <button type="button" onClick={downloadSingleImage} className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white hover:opacity-90">
               {t('receipt.downloadImage')}
+            </button>
+            <button type="button" onClick={shareViaWhatsApp} className="inline-flex items-center gap-1 rounded-lg bg-brand-green px-4 py-2 text-sm text-white hover:opacity-90">
+              💬 {t('receipt.shareWhatsApp')}
             </button>
           </div>
         </div>
