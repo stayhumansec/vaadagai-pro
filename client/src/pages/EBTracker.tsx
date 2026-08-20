@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getEBReadings, getHouses, saveEBReading, saveEBReadingsBulk } from '../api';
 import type { EBReading, House } from '../types';
-import { fmt, mlabel, todayYM } from '../utils';
+import { fmt, mlabel, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -24,7 +24,9 @@ export function EBTracker() {
   const [houseId, setHouseId] = useState<number | null>(null);
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [readings, setReadings] = useState<EBReading[]>([]);
-  const [month, setMonth] = useState(todayYM());
+  // This month's rent/EB is normally only settled and recorded next month,
+  // so default to last month's data instead of an always-empty current one.
+  const [month, setMonth] = useState(prevYM(todayYM()));
   const [startReading, setStartReading] = useState(0);
   const [endReading, setEndReading] = useState(0);
   const [saving, setSaving] = useState(false);

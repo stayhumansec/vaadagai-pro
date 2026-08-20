@@ -30,7 +30,9 @@ const PAST_UPLOAD_HEADERS = {
 export function Bulk() {
   const { showToast } = useToast();
   const { t } = useLanguage();
-  const [month, setMonth] = useState(todayYM());
+  // This month's rent is normally only settled and recorded next month, so
+  // default to last month's data instead of an always-empty current one.
+  const [month, setMonth] = useState(prevYM(todayYM()));
   const [rows, setRows] = useState<BulkRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

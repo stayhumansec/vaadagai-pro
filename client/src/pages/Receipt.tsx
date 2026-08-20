@@ -3,7 +3,7 @@ import html2canvas from 'html2canvas';
 import { ReceiptCard } from '../components/ReceiptCard';
 import { getEBReadings, getHouses, getRecord, getRecords } from '../api';
 import type { EBReading, House, RentRecord } from '../types';
-import { mlabel, todayYM } from '../utils';
+import { mlabel, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -18,7 +18,9 @@ export function Receipt() {
   const { t, language } = useLanguage();
   const [houses, setHouses] = useState<House[]>([]);
   const [houseId, setHouseId] = useState<number | null>(null);
-  const [month, setMonth] = useState(todayYM());
+  // This month's rent is normally only settled and recorded next month, so
+  // default to last month's data instead of an always-empty current one.
+  const [month, setMonth] = useState(prevYM(todayYM()));
   const [record, setRecord] = useState<RentRecord | null | undefined>(undefined);
   const [ebReading, setEbReading] = useState<EBReading | null>(null);
   const [bulkQueue, setBulkQueue] = useState<BulkQueueItem[]>([]);
