@@ -136,7 +136,10 @@ export function Bulk() {
       const fileRows = await readExcelSheet(file);
       const parsed = fileRows.map((r) => ({
         house_id: Number(r[PAST_UPLOAD_HEADERS.house]),
-        month: r[PAST_UPLOAD_HEADERS.month],
+        // Excel often reinterprets a typed "YYYY-MM" as a real date cell;
+        // readExcelSheet then hands it back as "YYYY-MM-DD" -- slicing to 7
+        // chars handles both that case and plain "YYYY-MM" text.
+        month: r[PAST_UPLOAD_HEADERS.month]?.slice(0, 7),
         rent: Number(r[PAST_UPLOAD_HEADERS.rent] || 0),
         water: Number(r[PAST_UPLOAD_HEADERS.water] || 0),
         maintenance: Number(r[PAST_UPLOAD_HEADERS.maintenance] || 0),

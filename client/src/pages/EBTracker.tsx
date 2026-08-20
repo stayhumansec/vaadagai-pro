@@ -115,7 +115,10 @@ export function EBTracker() {
       const rows = await readExcelSheet(file);
       const parsed = rows.map((r) => ({
         house_id: Number(r[UPLOAD_HEADERS.house]),
-        month: r[UPLOAD_HEADERS.month],
+        // Excel often reinterprets a typed "YYYY-MM" as a real date cell;
+        // readExcelSheet then hands it back as "YYYY-MM-DD" -- slicing to 7
+        // chars handles both that case and plain "YYYY-MM" text.
+        month: r[UPLOAD_HEADERS.month]?.slice(0, 7),
         start_reading: Number(r[UPLOAD_HEADERS.start] || 0),
         end_reading: Number(r[UPLOAD_HEADERS.end] || 0),
         rate: r[UPLOAD_HEADERS.rate] ? Number(r[UPLOAD_HEADERS.rate]) : undefined,
