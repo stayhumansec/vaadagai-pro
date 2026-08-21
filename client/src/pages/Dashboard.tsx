@@ -39,6 +39,27 @@ export function Dashboard() {
   const [month, setMonth] = useState(prevYM(todayYM()));
   const year = month.slice(0, 4);
 
+  // null = charts show the totals across all houses. Clicking a house drills
+  // the charts down to that one house's year, without affecting the summary
+  // metrics/house grid above (which always reflect the selected month).
+  const [chartHouseId, setChartHouseId] = useState<number | null>(null);
+  const [houseYearRecords, setHouseYearRecords] = useState<RentRecord[]>([]);
+  const [houseYearEb, setHouseYearEb] = useState<EBReading[]>([]);
+
+  useEffect(() => {
+    if (chartHouseId == null) return;
+    let cancelled = false;
+    Promise.all([
+      getRecords({ house_id: chartHouseId, month_from: `${year}-01`, month_to: `${year}-12` }),
+      getEBReadings({ house_id: chartHouseId, year }),
+    ]).then(([recs, eb]) => {
+      if (cancelled) return;
+      setHouseYearRecords(recs);
+      setHouseYearEb(eb);
+    });
+    return () => { cancelled = true; };
+  }, [chartHouseId, year]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -78,12 +99,24 @@ export function Dashboard() {
 
   const efficiency = summary && summary.billed > 0 ? Math.round((summary.collected / summary.billed) * 100) : 0;
 
-  const chartData = monthlyReport.map((m) => ({
-    month: mlabel(m.month, language),
-    collected: m.collected,
-    balance: m.balance,
-    eb: ebByMonth[m.month] ?? 0,
-  }));
+  const chartHouse = houses.find((h) => h.id === chartHouseId);
+
+  const chartData = chartHouseId == null
+    ? monthlyReport.map((m) => ({
+        month: mlabel(m.month, language),
+        collected: m.collected,
+        balance: m.balance,
+        eb: ebByMonth[m.month] ?? 0,
+      }))
+    : houseYearRecords
+        .slice()
+        .sort((a, b) => a.month.localeCompare(b.month))
+        .map((r) => ({
+          month: mlabel(r.month, language),
+          collected: r.received,
+          balance: r.balance,
+          eb: houseYearEb.find((e) => e.month === r.month)?.amount ?? 0,
+        }));
 
   const selectedHouse = houses.find((h) => h.id === selectedHouseId);
   const selectedRecord = selectedHouseId ? records[selectedHouseId] : undefined;
@@ -159,7 +192,10 @@ export function Dashboard() {
                     status={status}
                     amount={record?.total}
                     munBakki={record?.mun_bakki}
-                    onClick={() => setSelectedHouseId(house.id)}
+                    onClick={() => {
+                      setSelectedHouseId(house.id);
+                      setChartHouseId(house.id);
+                    }}
                   />
                 );
               })}
@@ -171,6 +207,21 @@ export function Dashboard() {
           </div>
         )}
       </Reveal>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-medium text-navy">
+          {chartHouse ? `${t('dashboard.chartsFor')} ${chartHouse.id} — ${chartHouse.name}` : t('dashboard.chartsAllHouses')}
+        </p>
+        {chartHouseId != null && (
+          <button
+            type="button"
+            onClick={() => setChartHouseId(null)}
+            className="rounded-full border border-gray-3 px-3 py-1 text-xs text-gray hover:bg-gray-4"
+          >
+            ✕ {t('dashboard.showAllHouses')}
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Reveal delayMs={140} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
