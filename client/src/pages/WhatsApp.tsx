@@ -108,22 +108,31 @@ export function WhatsApp() {
   // downloading the image and opening WhatsApp with just the text pre-filled.
   const shareWithReceipt = async (due: DueHouse) => {
     const text = buildMessage(due, month);
-    const el = due.record ? receiptRefs.current[due.house.id] : null;
 
-    if (el) {
-      try {
-        const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#fff' });
-        const result = await shareImageViaWhatsApp(canvas, `receipt_${month}_house${due.house.id}.png`, text, due.house.phone);
-        if (result === 'fallback') showToast(t('whatsapp.shareFallbackHint'), 'warn');
-        return;
-      } catch {
-        // fall through to the plain text reminder below
-      }
+    if (!due.record) {
+      // Nothing recorded yet for this house/month -- there's no receipt to
+      // build, so send the text reminder alone, but say so rather than
+      // silently sending a lesser message with no explanation.
+      showToast(t('whatsapp.noRecordHint'), 'warn');
+      window.open(waLink(due, month), '_blank', 'noreferrer');
+      return;
     }
 
-    // No recorded payment yet for this house/month -- nothing to show a
-    // receipt for, so just open the text reminder.
-    window.open(waLink(due, month), '_blank', 'noreferrer');
+    const el = receiptRefs.current[due.house.id];
+    if (!el) {
+      showToast(t('whatsapp.shareFailed'), 'err');
+      window.open(waLink(due, month), '_blank', 'noreferrer');
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#fff' });
+      const result = await shareImageViaWhatsApp(canvas, `receipt_${month}_house${due.house.id}.png`, text, due.house.phone);
+      if (result === 'fallback') showToast(t('whatsapp.shareFallbackHint'), 'warn');
+    } catch {
+      showToast(t('whatsapp.shareFailed'), 'err');
+      window.open(waLink(due, month), '_blank', 'noreferrer');
+    }
   };
 
   const queue = useMemo(() => dueHouses.filter((d) => d.house.phone), [dueHouses]);
