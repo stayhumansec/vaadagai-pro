@@ -208,6 +208,8 @@ export const translations: Dict = {
   'whatsapp.allSent': { ta: 'அனைத்து நினைவூட்டல்களும் திறக்கப்பட்டன', en: 'All reminders opened' },
   'whatsapp.noPhoneHint': { ta: 'வீடுகளுக்கு தொலைபேசி எண் இல்லை -- நகல் பயன்படுத்தவும்', en: 'houses have no phone number -- use Copy for them' },
   'whatsapp.shareFallbackHint': { ta: 'ரசீது படமாக பதிவிறக்கப்பட்டது -- WhatsApp-ல் இணைத்து அனுப்பவும்.', en: 'Receipt downloaded as an image -- attach it in WhatsApp and send.' },
+  'whatsapp.noRecordHint': { ta: 'இந்த வீட்டிற்கு இந்த மாதத்திற்கான பதிவு இல்லை -- உரை மட்டும் அனுப்பப்படுகிறது', en: 'No record for this house/month yet -- sending text only' },
+  'whatsapp.shareFailed': { ta: 'ரசீதை இணைக்க முடியவில்லை -- உரை மட்டும் அனுப்பப்படுகிறது', en: 'Could not attach the receipt -- sending text only' },
 
   // Report
   'report.yearTotal': { ta: 'ஆண்டு மொத்தம்', en: 'Year Total' },
