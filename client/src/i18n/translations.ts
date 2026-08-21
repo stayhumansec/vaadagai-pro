@@ -76,6 +76,8 @@ export const translations: Dict = {
   'dashboard.noHouses': { ta: 'வீடுகள் இல்லை.', en: 'No houses.' },
   'dashboard.dueHouses': { ta: 'நிலுவை உள்ள வீடுகள்', en: 'Houses with Dues' },
   'dashboard.allPaid': { ta: 'நிலுவை இல்லை. அனைவரும் செலுத்திவிட்டனர்.', en: 'No dues. Everyone has paid.' },
+  'dashboard.collectionChart': { ta: 'மாத வசூல் & நிலுவை', en: 'Monthly Collection & Balance' },
+  'dashboard.ebChart': { ta: 'EB பயன்பாடு போக்கு', en: 'EB Usage Trend' },
 
   // Monthly
   'monthly.autoGenerate': { ta: '✨ Auto உருவாக்கு', en: '✨ Auto-generate' },

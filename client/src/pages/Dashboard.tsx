@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
-import { HouseCardSkeleton, MetricCardSkeleton, Skeleton } from '../components/Skeleton';
+import { HouseCardSkeleton, MetricCardSkeleton } from '../components/Skeleton';
 import { Reveal } from '../components/Reveal';
 import { Modal } from '../components/Modal';
 import { ReceiptCard } from '../components/ReceiptCard';
-import { getDashboardSummary, getEBReadings, getHouses, getRecords } from '../api';
-import type { DashboardSummary, EBReading, House, RentRecord } from '../types';
+import { getDashboardSummary, getEBReadings, getHouses, getMonthlyReport, getRecords } from '../api';
+import type { DashboardSummary, EBReading, House, MonthlyReportRow, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
 import { shareImageViaWhatsApp } from '../lib/whatsappShare';
 import { useToast } from '../components/Toast';
@@ -25,6 +26,8 @@ export function Dashboard() {
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<Record<number, RentRecord>>({});
   const [ebReadings, setEbReadings] = useState<Record<number, EBReading>>({});
+  const [ebByMonth, setEbByMonth] = useState<Record<string, number>>({});
+  const [monthlyReport, setMonthlyReport] = useState<MonthlyReportRow[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +37,7 @@ export function Dashboard() {
   // This month's rent is normally only settled and recorded next month, so
   // default to last month's data instead of an always-empty current one.
   const [month, setMonth] = useState(prevYM(todayYM()));
+  const year = month.slice(0, 4);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,9 +47,10 @@ export function Dashboard() {
       getHouses(),
       getRecords({ month_from: month, month_to: month }),
       getDashboardSummary(month),
-      getEBReadings({ year: month.slice(0, 4) }),
+      getEBReadings({ year }),
+      getMonthlyReport(year),
     ])
-      .then(([houseList, recordList, dashboardSummary, ebList]) => {
+      .then(([houseList, recordList, dashboardSummary, ebList, monthlyData]) => {
         if (cancelled) return;
         setHouses(houseList);
         const byHouse: Record<number, RentRecord> = {};
@@ -54,6 +59,10 @@ export function Dashboard() {
         const ebByHouse: Record<number, EBReading> = {};
         ebList.filter((e) => e.month === month).forEach((e) => { ebByHouse[e.house_id] = e; });
         setEbReadings(ebByHouse);
+        const ebByMonthMap: Record<string, number> = {};
+        ebList.forEach((e) => { ebByMonthMap[e.month] = (ebByMonthMap[e.month] ?? 0) + e.amount; });
+        setEbByMonth(ebByMonthMap);
+        setMonthlyReport(monthlyData);
         setSummary(dashboardSummary);
         setConnected(true);
       })
@@ -65,15 +74,16 @@ export function Dashboard() {
       });
 
     return () => { cancelled = true; };
-  }, [month]);
+  }, [month, year]);
 
   const efficiency = summary && summary.billed > 0 ? Math.round((summary.collected / summary.billed) * 100) : 0;
 
-  const dueHouses = houses.filter((h) => {
-    if (h.status !== 'Active') return false;
-    const record = records[h.id];
-    return !record || record.pay_status !== 'full';
-  });
+  const chartData = monthlyReport.map((m) => ({
+    month: mlabel(m.month, language),
+    collected: m.collected,
+    balance: m.balance,
+    eb: ebByMonth[m.month] ?? 0,
+  }));
 
   const selectedHouse = houses.find((h) => h.id === selectedHouseId);
   const selectedRecord = selectedHouseId ? records[selectedHouseId] : undefined;
@@ -162,62 +172,43 @@ export function Dashboard() {
         )}
       </Reveal>
 
-      <Reveal delayMs={140} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
-        <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.dueHouses')}</p>
-        {loading && houses.length === 0 ? (
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-5 w-2/3" />
-          </div>
-        ) : dueHouses.length === 0 ? (
-          <div className="py-4 text-center">
-            <p className="text-2xl">🎉</p>
-            <p className="mt-1 text-sm text-gray">{t('dashboard.allPaid')}</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-gray">
-                  <th className="py-1 pr-3">{t('common.house')}</th>
-                  <th className="py-1 pr-3">{t('common.name')}</th>
-                  <th className="py-1 pr-3">{t('common.prevBalance')}</th>
-                  <th className="py-1 pr-3">{t('common.status')}</th>
-                  <th className="py-1 pr-3">{t('common.balance')}</th>
-                  <th className="py-1 pr-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {dueHouses.map((h) => {
-                  const record = records[h.id];
-                  return (
-                    <tr key={h.id} className="border-t border-gray-3 transition-colors hover:bg-gray-4">
-                      <td className="py-2 pr-3">{h.id}</td>
-                      <td className="py-2 pr-3">{h.name}</td>
-                      <td className="py-2 pr-3">{fmt(record?.mun_bakki)}</td>
-                      <td className="py-2 pr-3">{record ? record.pay_status : t('common.noRecord')}</td>
-                      <td className="py-2 pr-3 font-medium text-brand-red">{fmt(record?.balance ?? h.default_rent)}</td>
-                      <td className="py-2 pr-3">
-                        {h.phone && (
-                          <a
-                            href={`https://wa.me/91${h.phone}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-brand-green hover:underline"
-                          >
-                            💬 WhatsApp
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Reveal>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Reveal delayMs={140} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+          <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.collectionChart')}</p>
+          {chartData.length === 0 ? (
+            <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="month" fontSize={12} />
+                <YAxis fontSize={12} />
+                <Tooltip formatter={(v) => fmt(Number(v))} />
+                <Legend />
+                <Bar dataKey="collected" name={t('common.collected')} fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="balance" name={t('common.balance')} fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </Reveal>
+
+        <Reveal delayMs={180} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+          <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.ebChart')}</p>
+          {chartData.length === 0 ? (
+            <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="month" fontSize={12} />
+                <YAxis fontSize={12} />
+                <Tooltip formatter={(v) => fmt(Number(v))} />
+                <Line type="monotone" dataKey="eb" name={t('common.eb')} stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </Reveal>
+      </div>
 
       {selectedHouse && (
         <Modal title={`${t('common.house')} ${selectedHouse.id} — ${selectedHouse.name}`} onClose={() => setSelectedHouseId(null)}>
