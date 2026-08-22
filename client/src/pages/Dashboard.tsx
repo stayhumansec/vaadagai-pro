@@ -34,6 +34,13 @@ function gaugeColor(pct: number): string {
   return '#ef4444';
 }
 
+// Percentage change vs. the previous period. null means "nothing to compare"
+// (previous period was zero) rather than a misleading +/-Infinity.
+function pctDelta(current: number, prev: number): number | null {
+  if (prev === 0) return current === 0 ? 0 : null;
+  return Math.round(((current - prev) / prev) * 100);
+}
+
 export function Dashboard() {
   const { t, language } = useLanguage();
   const { showToast } = useToast();
@@ -42,6 +49,7 @@ export function Dashboard() {
   const [ebByMonth, setEbByMonth] = useState<Record<string, number>>({});
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReportRow[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [prevSummary, setPrevSummary] = useState<DashboardSummary | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -80,10 +88,11 @@ export function Dashboard() {
       getHouses(),
       getRecords({ month_from: month, month_to: month }),
       getDashboardSummary(month),
+      getDashboardSummary(prevYM(month)),
       getEBReadings({ year }),
       getMonthlyReport(year),
     ])
-      .then(([houseList, recordList, dashboardSummary, ebList, monthlyData]) => {
+      .then(([houseList, recordList, dashboardSummary, prevDashboardSummary, ebList, monthlyData]) => {
         if (cancelled) return;
         setHouses(houseList);
         const byHouse: Record<number, RentRecord> = {};
@@ -94,6 +103,7 @@ export function Dashboard() {
         setEbByMonth(ebByMonthMap);
         setMonthlyReport(monthlyData);
         setSummary(dashboardSummary);
+        setPrevSummary(prevDashboardSummary);
         setConnected(true);
       })
       .catch(() => {
@@ -107,6 +117,13 @@ export function Dashboard() {
   }, [month, year]);
 
   const efficiency = summary && summary.billed > 0 ? Math.round((summary.collected / summary.billed) * 100) : 0;
+  const prevEfficiency = prevSummary && prevSummary.billed > 0 ? Math.round((prevSummary.collected / prevSummary.billed) * 100) : 0;
+
+  const billedDelta = summary && prevSummary ? pctDelta(summary.billed, prevSummary.billed) : null;
+  const collectedDelta = summary && prevSummary ? pctDelta(summary.collected, prevSummary.collected) : null;
+  const balanceDelta = summary && prevSummary ? pctDelta(summary.balance, prevSummary.balance) : null;
+  const munBakkiDelta = summary && prevSummary ? pctDelta(summary.mun_bakki, prevSummary.mun_bakki) : null;
+  const efficiencyDelta = summary && prevSummary ? efficiency - prevEfficiency : null;
 
   const chartHouse = houses.find((h) => h.id === chartHouseId);
 
@@ -190,25 +207,28 @@ export function Dashboard() {
           Array.from({ length: 5 }).map((_, i) => <MetricCardSkeleton key={i} />)
         ) : (
           <>
-            <MetricCard label={t('dashboard.totalRent')} value={fmt(summary?.billed)} />
-            <MetricCard label={t('common.collected')} value={fmt(summary?.collected)} colorClass="text-brand-green" />
-            <MetricCard label={t('common.balance')} value={fmt(summary?.balance)} colorClass="text-brand-red" />
-            <MetricCard label={t('common.prevBalance')} value={fmt(summary?.mun_bakki)} colorClass="text-brand-orange" />
-            <MetricCard label={t('dashboard.efficiency')} value={`${efficiency}%`} colorClass="text-brand-purple" />
+            <MetricCard label={t('dashboard.totalRent')} value={fmt(summary?.billed)} delta={billedDelta} />
+            <MetricCard label={t('common.collected')} value={fmt(summary?.collected)} colorClass="text-brand-green" delta={collectedDelta} />
+            <MetricCard label={t('common.balance')} value={fmt(summary?.balance)} colorClass="text-brand-red" delta={balanceDelta} deltaGoodWhenPositive={false} />
+            <MetricCard label={t('common.prevBalance')} value={fmt(summary?.mun_bakki)} colorClass="text-brand-orange" delta={munBakkiDelta} deltaGoodWhenPositive={false} />
+            <MetricCard label={t('dashboard.efficiency')} value={`${efficiency}%`} colorClass="text-brand-purple" delta={efficiencyDelta} deltaSuffix="pts" />
           </>
         )}
       </Reveal>
 
       <Reveal delayMs={60} className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
-          <p className="mb-1 text-sm font-medium text-navy">{t('dashboard.efficiency')}</p>
-          <ResponsiveContainer width="100%" height={130}>
-            <RadialBarChart cx="50%" cy="100%" innerRadius="70%" outerRadius="100%" barSize={16} data={gaugeData} startAngle={180} endAngle={0}>
-              <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-              <RadialBar background dataKey="value" cornerRadius={8} />
-            </RadialBarChart>
-          </ResponsiveContainer>
-          <p className="-mt-8 text-center text-2xl font-semibold" style={{ color: gaugeFill }}>{efficiency}%</p>
+        <div className="flex flex-col rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+          <p className="text-sm font-medium text-navy">{t('dashboard.efficiency')}</p>
+          <p className="text-xs text-gray">{mlabel(month, language)}</p>
+          <div className="relative mt-1 flex-1">
+            <ResponsiveContainer width="100%" height={90}>
+              <RadialBarChart cx="50%" cy="100%" innerRadius="120%" outerRadius="170%" barSize={14} data={gaugeData} startAngle={180} endAngle={0}>
+                <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                <RadialBar background dataKey="value" cornerRadius={7} />
+              </RadialBarChart>
+            </ResponsiveContainer>
+            <p className="absolute inset-x-0 bottom-1 text-center text-3xl font-bold" style={{ color: gaugeFill }}>{efficiency}%</p>
+          </div>
         </div>
 
         <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
