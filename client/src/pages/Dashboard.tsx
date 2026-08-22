@@ -1,17 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
+import { useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
 import { HouseCardSkeleton, MetricCardSkeleton } from '../components/Skeleton';
 import { Reveal } from '../components/Reveal';
 import { Modal } from '../components/Modal';
-import { ReceiptCard } from '../components/ReceiptCard';
+import { ReceiptPreview } from '../components/ReceiptPreview';
 import { getDashboardSummary, getEBReadings, getHouses, getMonthlyReport, getRecords } from '../api';
 import type { DashboardSummary, EBReading, House, MonthlyReportRow, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
-import { shareImageViaWhatsApp } from '../lib/whatsappShare';
-import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
 function progressColor(pct: number): string {
@@ -22,7 +19,6 @@ function progressColor(pct: number): string {
 
 export function Dashboard() {
   const { t, language } = useLanguage();
-  const { showToast } = useToast();
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<Record<number, RentRecord>>({});
   const [ebReadings, setEbReadings] = useState<Record<number, EBReading>>({});
@@ -32,7 +28,6 @@ export function Dashboard() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedHouseId, setSelectedHouseId] = useState<number | null>(null);
-  const receiptRef = useRef<HTMLDivElement>(null);
 
   // This month's rent is normally only settled and recorded next month, so
   // default to last month's data instead of an always-empty current one.
@@ -120,18 +115,6 @@ export function Dashboard() {
 
   const selectedHouse = houses.find((h) => h.id === selectedHouseId);
   const selectedRecord = selectedHouseId ? records[selectedHouseId] : undefined;
-
-  const shareReceipt = async () => {
-    if (!receiptRef.current || !selectedHouse) return;
-    try {
-      const canvas = await html2canvas(receiptRef.current, { scale: 2, backgroundColor: '#fff' });
-      const caption = `${t('receipt.title')} — ${t('common.house')} ${selectedHouse.id} — ${mlabel(month, language)}`;
-      const result = await shareImageViaWhatsApp(canvas, `receipt_${month}_house${selectedHouse.id}.png`, caption, selectedHouse.phone);
-      if (result === 'fallback') showToast(t('receipt.shareFallbackHint'), 'warn');
-    } catch {
-      showToast(t('receipt.shareFailed'), 'err');
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -264,20 +247,7 @@ export function Dashboard() {
       {selectedHouse && (
         <Modal title={`${t('common.house')} ${selectedHouse.id} — ${selectedHouse.name}`} onClose={() => setSelectedHouseId(null)}>
           {selectedRecord ? (
-            <>
-              <div className="flex justify-center">
-                <ReceiptCard ref={receiptRef} house={selectedHouse} record={selectedRecord} ebReading={ebReadings[selectedHouse.id] ?? null} />
-              </div>
-              <div className="mt-4 flex justify-center">
-                <button
-                  type="button"
-                  onClick={shareReceipt}
-                  className="inline-flex items-center gap-1 rounded-lg bg-brand-green px-4 py-2 text-sm text-white hover:opacity-90"
-                >
-                  💬 {t('receipt.shareWhatsApp')}
-                </button>
-              </div>
-            </>
+            <ReceiptPreview house={selectedHouse} record={selectedRecord} ebReading={ebReadings[selectedHouse.id] ?? null} showShare />
           ) : (
             <p className="py-6 text-center text-sm text-brand-red">{t('receipt.noRecord')}</p>
           )}
