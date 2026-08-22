@@ -1,20 +1,37 @@
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  PolarAngleAxis,
+  RadialBar,
+  RadialBarChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
 import { HouseCardSkeleton, MetricCardSkeleton } from '../components/Skeleton';
 import { Reveal } from '../components/Reveal';
 import { getDashboardSummary, getEBReadings, getHouses, getMonthlyReport, getRecords } from '../api';
-import type { DashboardSummary, EBReading, House, MonthlyReportRow, RentRecord } from '../types';
+import type { DashboardSummary, EBReading, House, PayStatus, RentRecord, MonthlyReportRow } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
-function progressColor(pct: number): string {
-  if (pct >= 90) return 'from-brand-green to-emerald-400';
-  if (pct >= 50) return 'from-brand-amber to-yellow-400';
-  return 'from-brand-red to-rose-400';
+function gaugeColor(pct: number): string {
+  if (pct >= 90) return '#22c55e';
+  if (pct >= 50) return '#f59e0b';
+  return '#ef4444';
 }
 
 export function Dashboard() {
@@ -93,6 +110,30 @@ export function Dashboard() {
 
   const chartHouse = houses.find((h) => h.id === chartHouseId);
 
+  const gaugeFill = gaugeColor(efficiency);
+  const gaugeData = [{ value: Math.min(100, efficiency), fill: gaugeFill }];
+
+  const statusCounts: Record<PayStatus | 'pending', number> = { full: 0, partial: 0, none: 0, pending: 0 };
+  houses.forEach((house) => {
+    if (house.status === 'Inactive') return;
+    const record = records[house.id];
+    if (!record) { statusCounts.pending++; return; }
+    statusCounts[record.pay_status]++;
+  });
+  const statusData = [
+    { key: 'full', name: t('common.full'), value: statusCounts.full, fill: '#22c55e' },
+    { key: 'partial', name: t('common.partial'), value: statusCounts.partial, fill: '#f59e0b' },
+    { key: 'none', name: t('common.none'), value: statusCounts.none, fill: '#ef4444' },
+    { key: 'pending', name: t('status.pending'), value: statusCounts.pending, fill: '#94a3b8' },
+  ].filter((d) => d.value > 0);
+
+  const topDues = houses
+    .map((house) => ({ house, record: records[house.id] }))
+    .filter((x): x is { house: House; record: RentRecord } => !!x.record && x.record.balance > 0)
+    .sort((a, b) => b.record.balance - a.record.balance)
+    .slice(0, 5);
+  const maxDue = topDues[0]?.record.balance ?? 0;
+
   const downloadChart = async () => {
     if (!chartsRef.current) return;
     try {
@@ -158,13 +199,54 @@ export function Dashboard() {
         )}
       </Reveal>
 
-      <Reveal delayMs={60} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
-        <p className="mb-2 text-sm text-gray">{t('dashboard.progress')}</p>
-        <div className="h-3 w-full overflow-hidden rounded-full bg-gray-3">
-          <div
-            className={`h-full rounded-full bg-gradient-to-r transition-[width] duration-700 ease-premium ${progressColor(efficiency)}`}
-            style={{ width: `${Math.min(100, efficiency)}%` }}
-          />
+      <Reveal delayMs={60} className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+          <p className="mb-1 text-sm font-medium text-navy">{t('dashboard.efficiency')}</p>
+          <ResponsiveContainer width="100%" height={130}>
+            <RadialBarChart cx="50%" cy="100%" innerRadius="70%" outerRadius="100%" barSize={16} data={gaugeData} startAngle={180} endAngle={0}>
+              <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+              <RadialBar background dataKey="value" cornerRadius={8} />
+            </RadialBarChart>
+          </ResponsiveContainer>
+          <p className="-mt-8 text-center text-2xl font-semibold" style={{ color: gaugeFill }}>{efficiency}%</p>
+        </div>
+
+        <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+          <p className="mb-1 text-sm font-medium text-navy">{t('dashboard.paymentStatus')}</p>
+          {statusData.length === 0 ? (
+            <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={140}>
+              <PieChart>
+                <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={35} outerRadius={55} paddingAngle={2}>
+                  {statusData.map((d) => <Cell key={d.key} fill={d.fill} />)}
+                </Pie>
+                <Tooltip />
+                <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+          <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.topDues')}</p>
+          {topDues.length === 0 ? (
+            <p className="py-10 text-center text-sm text-gray">{t('dashboard.noDues')}</p>
+          ) : (
+            <div className="space-y-2">
+              {topDues.map(({ house, record }) => (
+                <div key={house.id}>
+                  <div className="flex justify-between gap-2 text-xs">
+                    <span className="truncate text-navy">{house.id} — {house.name}</span>
+                    <span className="shrink-0 font-medium text-brand-red">{fmt(record.balance)}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-3">
+                    <div className="h-full rounded-full bg-brand-red" style={{ width: `${maxDue > 0 ? (record.balance / maxDue) * 100 : 0}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </Reveal>
 
