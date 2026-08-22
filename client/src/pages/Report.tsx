@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { getHouseReport, getMonthlyReport } from '../api';
 import type { HouseReportRow, MonthlyReportRow } from '../types';
 import { fmt, mlabel } from '../utils';
+import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
 export function Report() {
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [monthly, setMonthly] = useState<MonthlyReportRow[]>([]);
   const [byHouse, setByHouse] = useState<HouseReportRow[]>([]);
@@ -28,6 +30,31 @@ export function Report() {
   );
   const efficiency = totals.billed > 0 ? Math.round((totals.collected / totals.billed) * 100) : 0;
 
+  const downloadExcel = async () => {
+    const monthlyHeaders = [t('common.month'), t('common.total'), t('common.collected'), t('common.balance'), `${t('report.efficiencyShort')} %`];
+    const monthlyRows = monthly.map((m) => {
+      const eff = m.billed > 0 ? Math.round((m.collected / m.billed) * 100) : 0;
+      return [mlabel(m.month, language), m.billed, m.collected, m.balance, eff];
+    });
+    const houseHeaders = [t('common.house'), t('common.name'), t('report.months'), t('common.total'), t('common.collected'), t('common.balance'), `${t('report.efficiencyShort')} %`];
+    const houseRows = byHouse.map((h) => {
+      const eff = h.billed > 0 ? Math.round((h.collected / h.billed) * 100) : 0;
+      return [h.house_id, h.name, h.months, h.billed, h.collected, h.balance, eff];
+    });
+    try {
+      const { downloadExcel: writeExcel } = await import('../lib/excel');
+      await writeExcel(
+        [
+          { name: 'Monthly', headers: monthlyHeaders, rows: monthlyRows },
+          { name: 'By House', headers: houseHeaders, rows: houseRows },
+        ],
+        `report_${year}.xlsx`
+      );
+    } catch {
+      showToast(t('report.excelDownloadFailed'), 'err');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
@@ -42,6 +69,14 @@ export function Report() {
         </label>
         <button type="button" onClick={load} className="rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4">
           {t('common.load')}
+        </button>
+        <button
+          type="button"
+          onClick={downloadExcel}
+          disabled={monthly.length === 0}
+          className="ml-auto rounded-lg border border-gray-3 px-3 py-2 text-sm hover:bg-gray-4 disabled:opacity-60"
+        >
+          ⬇️ {t('common.excel')}
         </button>
       </div>
 

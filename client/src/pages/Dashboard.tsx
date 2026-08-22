@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import html2canvas from 'html2canvas';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
@@ -7,6 +8,7 @@ import { Reveal } from '../components/Reveal';
 import { getDashboardSummary, getEBReadings, getHouses, getMonthlyReport, getRecords } from '../api';
 import type { DashboardSummary, EBReading, House, MonthlyReportRow, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
+import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
 function progressColor(pct: number): string {
@@ -17,6 +19,7 @@ function progressColor(pct: number): string {
 
 export function Dashboard() {
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<Record<number, RentRecord>>({});
   const [ebByMonth, setEbByMonth] = useState<Record<string, number>>({});
@@ -36,6 +39,7 @@ export function Dashboard() {
   const [chartHouseId, setChartHouseId] = useState<number | null>(null);
   const [houseYearRecords, setHouseYearRecords] = useState<RentRecord[]>([]);
   const [houseYearEb, setHouseYearEb] = useState<EBReading[]>([]);
+  const chartsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (chartHouseId == null) return;
@@ -88,6 +92,20 @@ export function Dashboard() {
   const efficiency = summary && summary.billed > 0 ? Math.round((summary.collected / summary.billed) * 100) : 0;
 
   const chartHouse = houses.find((h) => h.id === chartHouseId);
+
+  const downloadChart = async () => {
+    if (!chartsRef.current) return;
+    try {
+      const canvas = await html2canvas(chartsRef.current, { scale: 2, backgroundColor: '#fff' });
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      const scope = chartHouse ? `house${chartHouse.id}` : 'all';
+      a.download = `charts_${year}_${scope}.png`;
+      a.click();
+    } catch {
+      showToast(t('dashboard.chartDownloadFailed'), 'err');
+    }
+  };
 
   const chartData = chartHouseId == null
     ? monthlyReport.map((m) => ({
@@ -191,9 +209,16 @@ export function Dashboard() {
             ✕ {t('dashboard.showAllHouses')}
           </button>
         )}
+        <button
+          type="button"
+          onClick={downloadChart}
+          className="ml-auto rounded-lg border border-gray-3 px-3 py-1.5 text-xs hover:bg-gray-4"
+        >
+          📷 {t('dashboard.downloadChart')}
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div ref={chartsRef} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Reveal delayMs={140} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
           <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.collectionChart')}</p>
           {chartData.length === 0 ? (
