@@ -1,37 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  PolarAngleAxis,
-  RadialBar,
-  RadialBarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
 import { HouseCardSkeleton, MetricCardSkeleton } from '../components/Skeleton';
 import { Reveal } from '../components/Reveal';
-import { getDashboardSummary, getEBReadings, getHouses, getMonthlyReport, getRecords } from '../api';
-import type { DashboardSummary, EBReading, House, PayStatus, RentRecord, MonthlyReportRow } from '../types';
+import { getDashboardSummary, getHouses, getMonthlyReport, getRecords } from '../api';
+import type { DashboardSummary, House, MonthlyReportRow, PayStatus, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
-function gaugeColor(pct: number): string {
-  if (pct >= 90) return '#22c55e';
-  if (pct >= 50) return '#f59e0b';
-  return '#ef4444';
+// A single shared good/warning/bad color scale, used everywhere on this page
+// so the same colors always mean the same thing.
+function rateColorClass(pct: number): string {
+  if (pct >= 90) return 'text-brand-green';
+  if (pct >= 50) return 'text-brand-amber';
+  return 'text-brand-red';
+}
+function rateBgClass(pct: number): string {
+  if (pct >= 90) return 'bg-brand-green';
+  if (pct >= 50) return 'bg-brand-amber';
+  return 'bg-brand-red';
 }
 
 // Percentage change vs. the previous period. null means "nothing to compare"
@@ -46,7 +36,6 @@ export function Dashboard() {
   const { showToast } = useToast();
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<Record<number, RentRecord>>({});
-  const [ebByMonth, setEbByMonth] = useState<Record<string, number>>({});
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReportRow[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [prevSummary, setPrevSummary] = useState<DashboardSummary | null>(null);
@@ -58,24 +47,19 @@ export function Dashboard() {
   const [month, setMonth] = useState(prevYM(todayYM()));
   const year = month.slice(0, 4);
 
-  // null = charts show the totals across all houses. Clicking a house drills
-  // the charts down to that one house's year, without affecting the summary
-  // metrics/house grid above (which always reflect the selected month).
+  // null = the chart shows the totals across all houses. Clicking a house
+  // drills the chart down to that one house's year, without affecting the
+  // summary metrics/house grid above (which always reflect the selected
+  // month).
   const [chartHouseId, setChartHouseId] = useState<number | null>(null);
   const [houseYearRecords, setHouseYearRecords] = useState<RentRecord[]>([]);
-  const [houseYearEb, setHouseYearEb] = useState<EBReading[]>([]);
-  const chartsRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (chartHouseId == null) return;
     let cancelled = false;
-    Promise.all([
-      getRecords({ house_id: chartHouseId, month_from: `${year}-01`, month_to: `${year}-12` }),
-      getEBReadings({ house_id: chartHouseId, year }),
-    ]).then(([recs, eb]) => {
-      if (cancelled) return;
-      setHouseYearRecords(recs);
-      setHouseYearEb(eb);
+    getRecords({ house_id: chartHouseId, month_from: `${year}-01`, month_to: `${year}-12` }).then((recs) => {
+      if (!cancelled) setHouseYearRecords(recs);
     });
     return () => { cancelled = true; };
   }, [chartHouseId, year]);
@@ -89,18 +73,14 @@ export function Dashboard() {
       getRecords({ month_from: month, month_to: month }),
       getDashboardSummary(month),
       getDashboardSummary(prevYM(month)),
-      getEBReadings({ year }),
       getMonthlyReport(year),
     ])
-      .then(([houseList, recordList, dashboardSummary, prevDashboardSummary, ebList, monthlyData]) => {
+      .then(([houseList, recordList, dashboardSummary, prevDashboardSummary, monthlyData]) => {
         if (cancelled) return;
         setHouses(houseList);
         const byHouse: Record<number, RentRecord> = {};
         recordList.forEach((r) => { byHouse[r.house_id] = r; });
         setRecords(byHouse);
-        const ebByMonthMap: Record<string, number> = {};
-        ebList.forEach((e) => { ebByMonthMap[e.month] = (ebByMonthMap[e.month] ?? 0) + e.amount; });
-        setEbByMonth(ebByMonthMap);
         setMonthlyReport(monthlyData);
         setSummary(dashboardSummary);
         setPrevSummary(prevDashboardSummary);
@@ -127,9 +107,6 @@ export function Dashboard() {
 
   const chartHouse = houses.find((h) => h.id === chartHouseId);
 
-  const gaugeFill = gaugeColor(efficiency);
-  const gaugeData = [{ value: Math.min(100, efficiency), fill: gaugeFill }];
-
   const statusCounts: Record<PayStatus | 'pending', number> = { full: 0, partial: 0, none: 0, pending: 0 };
   houses.forEach((house) => {
     if (house.status === 'Inactive') return;
@@ -138,11 +115,12 @@ export function Dashboard() {
     statusCounts[record.pay_status]++;
   });
   const statusData = [
-    { key: 'full', name: t('common.full'), value: statusCounts.full, fill: '#22c55e' },
-    { key: 'partial', name: t('common.partial'), value: statusCounts.partial, fill: '#f59e0b' },
-    { key: 'none', name: t('common.none'), value: statusCounts.none, fill: '#ef4444' },
-    { key: 'pending', name: t('status.pending'), value: statusCounts.pending, fill: '#94a3b8' },
+    { key: 'full', name: t('common.full'), value: statusCounts.full, colorClass: 'bg-brand-green' },
+    { key: 'partial', name: t('common.partial'), value: statusCounts.partial, colorClass: 'bg-brand-amber' },
+    { key: 'none', name: t('common.none'), value: statusCounts.none, colorClass: 'bg-brand-red' },
+    { key: 'pending', name: t('status.pending'), value: statusCounts.pending, colorClass: 'bg-gray-3' },
   ].filter((d) => d.value > 0);
+  const statusTotal = statusData.reduce((sum, d) => sum + d.value, 0);
 
   const topDues = houses
     .map((house) => ({ house, record: records[house.id] }))
@@ -152,13 +130,13 @@ export function Dashboard() {
   const maxDue = topDues[0]?.record.balance ?? 0;
 
   const downloadChart = async () => {
-    if (!chartsRef.current) return;
+    if (!chartRef.current) return;
     try {
-      const canvas = await html2canvas(chartsRef.current, { scale: 2, backgroundColor: '#fff' });
+      const canvas = await html2canvas(chartRef.current, { scale: 2, backgroundColor: '#fff' });
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
       const scope = chartHouse ? `house${chartHouse.id}` : 'all';
-      a.download = `charts_${year}_${scope}.png`;
+      a.download = `chart_${year}_${scope}.png`;
       a.click();
     } catch {
       showToast(t('dashboard.chartDownloadFailed'), 'err');
@@ -170,7 +148,6 @@ export function Dashboard() {
         month: mlabel(m.month, language),
         collected: m.collected,
         balance: m.balance,
-        eb: ebByMonth[m.month] ?? 0,
       }))
     : houseYearRecords
         .slice()
@@ -179,7 +156,6 @@ export function Dashboard() {
           month: mlabel(r.month, language),
           collected: r.received,
           balance: r.balance,
-          eb: houseYearEb.find((e) => e.month === r.month)?.amount ?? 0,
         }));
 
   return (
@@ -207,51 +183,52 @@ export function Dashboard() {
           Array.from({ length: 5 }).map((_, i) => <MetricCardSkeleton key={i} />)
         ) : (
           <>
-            <MetricCard label={t('dashboard.totalRent')} value={fmt(summary?.billed)} delta={billedDelta} />
-            <MetricCard label={t('common.collected')} value={fmt(summary?.collected)} colorClass="text-brand-green" delta={collectedDelta} />
-            <MetricCard label={t('common.balance')} value={fmt(summary?.balance)} colorClass="text-brand-red" delta={balanceDelta} deltaGoodWhenPositive={false} />
-            <MetricCard label={t('common.prevBalance')} value={fmt(summary?.mun_bakki)} colorClass="text-brand-orange" delta={munBakkiDelta} deltaGoodWhenPositive={false} />
-            <MetricCard label={t('dashboard.efficiency')} value={`${efficiency}%`} colorClass="text-brand-purple" delta={efficiencyDelta} deltaSuffix="pts" />
+            <MetricCard icon="💰" label={t('dashboard.totalRent')} value={fmt(summary?.billed)} delta={billedDelta} />
+            <MetricCard icon="✅" label={t('common.collected')} value={fmt(summary?.collected)} colorClass="text-brand-green" delta={collectedDelta} />
+            <MetricCard icon="⚠️" label={t('common.balance')} value={fmt(summary?.balance)} colorClass="text-brand-red" delta={balanceDelta} deltaGoodWhenPositive={false} />
+            <MetricCard icon="📌" label={t('common.prevBalance')} value={fmt(summary?.mun_bakki)} colorClass="text-brand-orange" delta={munBakkiDelta} deltaGoodWhenPositive={false} />
+            <MetricCard
+              icon="📊"
+              label={t('dashboard.efficiency')}
+              value={`${efficiency}%`}
+              colorClass={rateColorClass(efficiency)}
+              progressPct={efficiency}
+              progressColorClass={rateBgClass(efficiency)}
+              delta={efficiencyDelta}
+              deltaSuffix="pts"
+            />
           </>
         )}
       </Reveal>
 
-      <Reveal delayMs={60} className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="flex flex-col rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
-          <p className="text-sm font-medium text-navy">{t('dashboard.efficiency')}</p>
-          <p className="text-xs text-gray">{mlabel(month, language)}</p>
-          <div className="relative mt-1 flex-1">
-            <ResponsiveContainer width="100%" height={90}>
-              <RadialBarChart cx="50%" cy="100%" innerRadius="120%" outerRadius="170%" barSize={14} data={gaugeData} startAngle={180} endAngle={0}>
-                <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                <RadialBar background dataKey="value" cornerRadius={7} />
-              </RadialBarChart>
-            </ResponsiveContainer>
-            <p className="absolute inset-x-0 bottom-1 text-center text-3xl font-bold" style={{ color: gaugeFill }}>{efficiency}%</p>
-          </div>
-        </div>
-
+      <Reveal delayMs={60} className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
-          <p className="mb-1 text-sm font-medium text-navy">{t('dashboard.paymentStatus')}</p>
-          {statusData.length === 0 ? (
-            <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
+          <p className="text-sm font-medium text-navy">{t('dashboard.paymentStatus')}</p>
+          {statusTotal === 0 ? (
+            <p className="py-6 text-center text-sm text-gray">{t('report.noDataHint')}</p>
           ) : (
-            <ResponsiveContainer width="100%" height={140}>
-              <PieChart>
-                <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={35} outerRadius={55} paddingAngle={2}>
-                  {statusData.map((d) => <Cell key={d.key} fill={d.fill} />)}
-                </Pie>
-                <Tooltip />
-                <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer>
+            <>
+              <div className="mt-3 flex h-4 w-full overflow-hidden rounded-full bg-gray-3">
+                {statusData.map((d) => (
+                  <div key={d.key} className={d.colorClass} style={{ width: `${(d.value / statusTotal) * 100}%` }} />
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                {statusData.map((d) => (
+                  <span key={d.key} className="flex items-center gap-1.5">
+                    <span className={`h-2.5 w-2.5 rounded-full ${d.colorClass}`} />
+                    {d.name}: <strong className="text-navy">{d.value}</strong>
+                  </span>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
         <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
           <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.topDues')}</p>
           {topDues.length === 0 ? (
-            <p className="py-10 text-center text-sm text-gray">{t('dashboard.noDues')}</p>
+            <p className="py-6 text-center text-sm text-gray">{t('dashboard.noDues')}</p>
           ) : (
             <div className="space-y-2">
               {topDues.map(({ house, record }) => (
@@ -320,13 +297,13 @@ export function Dashboard() {
         </button>
       </div>
 
-      <div ref={chartsRef} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Reveal delayMs={140} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+      <Reveal delayMs={140}>
+        <div ref={chartRef} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
           <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.collectionChart')}</p>
           {chartData.length === 0 ? (
             <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="month" fontSize={12} />
@@ -338,25 +315,8 @@ export function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
           )}
-        </Reveal>
-
-        <Reveal delayMs={180} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
-          <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.ebChart')}</p>
-          {chartData.length === 0 ? (
-            <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="month" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip formatter={(v) => fmt(Number(v))} />
-                <Line type="monotone" dataKey="eb" name={t('common.eb')} stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </Reveal>
-      </div>
+        </div>
+      </Reveal>
     </div>
   );
 }
