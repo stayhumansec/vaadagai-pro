@@ -72,7 +72,6 @@ export const translations: Dict = {
   'dashboard.checking': { ta: 'சரிபார்க்கிறது...', en: 'Checking...' },
   'dashboard.totalRent': { ta: 'மொத்த வாடகை', en: 'Total Rent' },
   'dashboard.efficiency': { ta: 'வசூல் திறன்', en: 'Collection Efficiency' },
-  'dashboard.progress': { ta: 'வசூல் முன்னேற்றம்', en: 'Collection Progress' },
   'dashboard.houses': { ta: 'வீடுகள்', en: 'Houses' },
   'dashboard.noHouses': { ta: 'வீடுகள் இல்லை.', en: 'No houses.' },
   'dashboard.dueHouses': { ta: 'நிலுவை உள்ள வீடுகள்', en: 'Houses with Dues' },
@@ -84,6 +83,9 @@ export const translations: Dict = {
   'dashboard.showAllHouses': { ta: 'அனைத்து வீடுகளையும் காட்டு', en: 'Show All Houses' },
   'dashboard.downloadChart': { ta: 'படமாக பதிவிறக்கு', en: 'Download Chart' },
   'dashboard.chartDownloadFailed': { ta: 'படமாக பதிவிறக்க முடியவில்லை', en: 'Could not download the chart' },
+  'dashboard.paymentStatus': { ta: 'கட்டண நிலை', en: 'Payment Status' },
+  'dashboard.topDues': { ta: 'அதிக நிலுவை உள்ள வீடுகள்', en: 'Top Dues' },
+  'dashboard.noDues': { ta: 'நிலுவை இல்லை. அனைவரும் செலுத்திவிட்டனர்.', en: 'No dues. Everyone has paid.' },
 
   // Monthly
   'monthly.autoGenerate': { ta: '✨ Auto உருவாக்கு', en: '✨ Auto-generate' },
