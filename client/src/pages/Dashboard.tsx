@@ -55,7 +55,8 @@ export function Dashboard() {
   const [chartHouseId, setChartHouseId] = useState<number | null>(null);
   const [houseYearRecords, setHouseYearRecords] = useState<RentRecord[]>([]);
   const [houseYearEb, setHouseYearEb] = useState<EBReading[]>([]);
-  const chartRef = useRef<HTMLDivElement>(null);
+  const collectionChartRef = useRef<HTMLDivElement>(null);
+  const ebChartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (chartHouseId == null) return;
@@ -140,19 +141,23 @@ export function Dashboard() {
     .slice(0, 5);
   const maxDue = topDues[0]?.record.balance ?? 0;
 
-  const downloadChart = async () => {
-    if (!chartRef.current) return;
+  const downloadChart = async (ref: React.RefObject<HTMLDivElement | null>, kind: string) => {
+    if (!ref.current) return;
     try {
-      const canvas = await html2canvas(chartRef.current, { scale: 2, backgroundColor: '#fff' });
+      const canvas = await html2canvas(ref.current, { scale: 2, backgroundColor: '#fff' });
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
       const scope = chartHouse ? `house${chartHouse.id}` : 'all';
-      a.download = `charts_${year}_${scope}.png`;
+      a.download = `${kind}_${year}_${scope}.png`;
       a.click();
     } catch {
       showToast(t('dashboard.chartDownloadFailed'), 'err');
     }
   };
+
+  // Shown inside each chart card (and so captured in its downloaded image)
+  // so a downloaded chart is self-explanatory about whose data it is.
+  const chartScopeLabel = chartHouse ? `${chartHouse.id} — ${chartHouse.name}` : t('dashboard.chartsAllHouses');
 
   const chartData = chartHouseId == null
     ? monthlyReport.map((m) => ({
@@ -301,19 +306,25 @@ export function Dashboard() {
             ✕ {t('dashboard.showAllHouses')}
           </button>
         )}
-        <button
-          type="button"
-          onClick={downloadChart}
-          className="ml-auto rounded-lg border border-gray-3 px-3 py-1.5 text-xs hover:bg-gray-4"
-        >
-          📷 {t('dashboard.downloadChart')}
-        </button>
       </div>
 
       <Reveal delayMs={140}>
-        <div ref={chartRef} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
-            <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.collectionChart')}</p>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div ref={collectionChartRef} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-navy">{t('dashboard.collectionChart')}</p>
+                <p className="text-xs text-gray">{chartScopeLabel}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => downloadChart(collectionChartRef, 'collection')}
+                className="shrink-0 rounded-lg border border-gray-3 px-2 py-1 text-xs hover:bg-gray-4"
+                title={t('dashboard.downloadChart')}
+              >
+                📷
+              </button>
+            </div>
             {chartData.length === 0 ? (
               <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
             ) : (
@@ -331,8 +342,21 @@ export function Dashboard() {
             )}
           </div>
 
-          <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
-            <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.ebChart')}</p>
+          <div ref={ebChartRef} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-navy">{t('dashboard.ebChart')}</p>
+                <p className="text-xs text-gray">{chartScopeLabel}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => downloadChart(ebChartRef, 'eb')}
+                className="shrink-0 rounded-lg border border-gray-3 px-2 py-1 text-xs hover:bg-gray-4"
+                title={t('dashboard.downloadChart')}
+              >
+                📷
+              </button>
+            </div>
             {chartData.length === 0 ? (
               <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
             ) : (
