@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getHouseReport, getMonthlyReport } from '../api';
 import type { HouseReportRow, MonthlyReportRow } from '../types';
 import { fmt, mlabel } from '../utils';
@@ -28,12 +27,6 @@ export function Report() {
     { billed: 0, collected: 0, balance: 0 }
   );
   const efficiency = totals.billed > 0 ? Math.round((totals.collected / totals.billed) * 100) : 0;
-
-  const chartData = monthly.map((m) => ({
-    month: mlabel(m.month, language),
-    வசூல்: m.collected,
-    நிலுவை: m.balance,
-  }));
 
   return (
     <div className="space-y-4">
@@ -69,20 +62,6 @@ export function Report() {
           <p className="text-xs text-gray">{t('report.efficiencyShort')}</p>
           <p className="mt-1 text-xl font-semibold text-brand-purple">{efficiency}%</p>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-gray-3 bg-white p-4">
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis dataKey="month" fontSize={12} />
-            <YAxis fontSize={12} />
-            <Tooltip formatter={(v) => fmt(Number(v))} />
-            <Legend />
-            <Bar dataKey="வசூல்" stackId="a" fill="#22c55e" />
-            <Bar dataKey="நிலுவை" stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-3 bg-white">
