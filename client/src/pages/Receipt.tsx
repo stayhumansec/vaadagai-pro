@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { ReceiptCard } from '../components/ReceiptCard';
+import { ReceiptPreview } from '../components/ReceiptPreview';
 import { getEBReadings, getHouses, getRecord, getRecords } from '../api';
 import type { EBReading, House, RentRecord } from '../types';
-import { mlabel, prevYM, todayYM } from '../utils';
-import { shareImageViaWhatsApp } from '../lib/whatsappShare';
+import { prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -16,7 +16,7 @@ interface BulkQueueItem {
 
 export function Receipt() {
   const { showToast } = useToast();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [houses, setHouses] = useState<House[]>([]);
   const [houseId, setHouseId] = useState<number | null>(null);
   // This month's rent is normally only settled and recorded next month, so
@@ -26,7 +26,6 @@ export function Receipt() {
   const [ebReading, setEbReading] = useState<EBReading | null>(null);
   const [bulkQueue, setBulkQueue] = useState<BulkQueueItem[]>([]);
   const [bulkRunning, setBulkRunning] = useState(false);
-  const receiptRef = useRef<HTMLDivElement>(null);
   const bulkRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
@@ -46,29 +45,6 @@ export function Receipt() {
     } catch {
       setRecord(null);
       setEbReading(null);
-    }
-  };
-
-  const downloadSingleImage = async () => {
-    if (!receiptRef.current) return;
-    const canvas = await html2canvas(receiptRef.current, { scale: 2, backgroundColor: '#fff' });
-    const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = `receipt_${month}_house${houseId}.png`;
-    a.click();
-  };
-
-  const printSingle = () => window.print();
-
-  const shareViaWhatsApp = async () => {
-    if (!receiptRef.current || !selectedHouse) return;
-    try {
-      const canvas = await html2canvas(receiptRef.current, { scale: 2, backgroundColor: '#fff' });
-      const caption = `${t('receipt.title')} — ${t('common.house')} ${selectedHouse.id} — ${mlabel(month, language)}`;
-      const result = await shareImageViaWhatsApp(canvas, `receipt_${month}_house${selectedHouse.id}.png`, caption, selectedHouse.phone);
-      if (result === 'fallback') showToast(t('receipt.shareFallbackHint'), 'warn');
-    } catch {
-      showToast(t('receipt.shareFailed'), 'err');
     }
   };
 
@@ -161,20 +137,7 @@ export function Receipt() {
 
       {record && selectedHouse && (
         <div className="rounded-xl border border-gray-3 bg-gray-4 p-6">
-          <div className="flex justify-center">
-            <ReceiptCard ref={receiptRef} house={selectedHouse} record={record} ebReading={ebReading} />
-          </div>
-          <div className="mt-4 flex justify-center gap-2">
-            <button type="button" onClick={printSingle} className="rounded-lg border border-gray-3 bg-white px-4 py-2 text-sm hover:bg-gray-4">
-              🖨️ {t('common.print')}
-            </button>
-            <button type="button" onClick={downloadSingleImage} className="rounded-lg bg-brand-blue px-4 py-2 text-sm text-white hover:opacity-90">
-              {t('receipt.downloadImage')}
-            </button>
-            <button type="button" onClick={shareViaWhatsApp} className="inline-flex items-center gap-1 rounded-lg bg-brand-green px-4 py-2 text-sm text-white hover:opacity-90">
-              💬 {t('receipt.shareWhatsApp')}
-            </button>
-          </div>
+          <ReceiptPreview house={selectedHouse} record={record} ebReading={ebReading} showPrint showDownload showShare />
         </div>
       )}
 
