@@ -2,12 +2,11 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthCallback } from './pages/AuthCallback';
-import { Bulk } from './pages/Bulk';
 import { Dashboard } from './pages/Dashboard';
 import { EBTracker } from './pages/EBTracker';
 import { Ledger } from './pages/Ledger';
 import { Login } from './pages/Login';
-import { Monthly } from './pages/Monthly';
+import { RentEntry } from './pages/RentEntry';
 import { Receipt } from './pages/Receipt';
 import { RentHistory } from './pages/RentHistory';
 import { Report } from './pages/Report';
@@ -29,8 +28,8 @@ function App() {
         }
       >
         <Route index element={<Dashboard />} />
-        <Route path="/monthly" element={<Monthly />} />
-        <Route path="/bulk" element={<Bulk />} />
+        <Route path="/monthly" element={<RentEntry />} />
+        <Route path="/bulk" element={<Navigate to="/monthly" replace />} />
         <Route path="/ledger" element={<Ledger />} />
         <Route path="/receipt" element={<Receipt />} />
         <Route path="/eb" element={<EBTracker />} />

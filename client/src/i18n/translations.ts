@@ -5,6 +5,7 @@ type Dict = Record<string, { ta: string; en: string }>;
 export const translations: Dict = {
   // Nav / layout
   'nav.dashboard': { ta: 'டாஷ்போர்டு', en: 'Dashboard' },
+  'nav.rentEntry': { ta: 'வாடகை பதிவு', en: 'Rent Entry' },
   'nav.monthly': { ta: 'மாத பதிவு', en: 'Monthly Entry' },
   'nav.bulk': { ta: 'மொத்த பதிவு', en: 'Bulk Entry' },
   'nav.ledger': { ta: 'பதிவேடு', en: 'Ledger' },
