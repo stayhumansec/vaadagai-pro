@@ -82,6 +82,8 @@ export const translations: Dict = {
   'dashboard.chartsAllHouses': { ta: '📊 அனைத்து வீடுகளும் — மொத்தம்', en: '📊 All Houses — Total' },
   'dashboard.chartsFor': { ta: '📊 வீடு', en: '📊 House' },
   'dashboard.showAllHouses': { ta: 'அனைத்து வீடுகளையும் காட்டு', en: 'Show All Houses' },
+  'dashboard.downloadChart': { ta: 'படமாக பதிவிறக்கு', en: 'Download Chart' },
+  'dashboard.chartDownloadFailed': { ta: 'படமாக பதிவிறக்க முடியவில்லை', en: 'Could not download the chart' },
 
   // Monthly
   'monthly.autoGenerate': { ta: '✨ Auto உருவாக்கு', en: '✨ Auto-generate' },
@@ -224,6 +226,7 @@ export const translations: Dict = {
   'report.noDataHint': { ta: 'தரவு இல்லை. "ஏற்று" அழுத்தவும்.', en: 'No data. Click "Load".' },
   'report.byHouse': { ta: 'வீடு வாரியாக', en: 'By House' },
   'report.months': { ta: 'மாதங்கள்', en: 'months' },
+  'report.excelDownloadFailed': { ta: 'Excel பதிவிறக்க முடியவில்லை', en: 'Could not download Excel' },
 
   // Settings / Setup
   'settings.googleOAuth': { ta: 'Google OAuth', en: 'Google OAuth' },
