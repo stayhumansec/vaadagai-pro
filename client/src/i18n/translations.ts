@@ -122,7 +122,7 @@ export const translations: Dict = {
 
   // Receipt
   'receipt.title': { ta: '🏠 வாடகை ரசீது', en: '🏠 Rent Receipt' },
-  'receipt.single': { ta: '📄 தனி ரசீது', en: '📄 Single Receipt' },
+  'receipt.pickHouseHint': { ta: 'ரசீதை காண ஒரு வீட்டைத் தேர்ந்தெடுக்கவும்.', en: 'Click a house to view its receipt.' },
   'receipt.bulkImage': { ta: '🖼️ அனைத்தும் படமாக', en: '🖼️ Download All as Images' },
   'receipt.downloading': { ta: 'பதிவிறக்குகிறது...', en: 'Downloading...' },
   'receipt.downloadImage': { ta: '🖼️ படமாக பதிவிறக்கு', en: '🖼️ Download as Image' },
