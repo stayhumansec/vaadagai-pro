@@ -203,7 +203,8 @@ export const translations: Dict = {
   'rentHistory.saved': { ta: 'திருத்தம் சேமிக்கப்பட்டது', en: 'Revision saved' },
   'rentHistory.futureOnlyHint': { ta: 'இந்த திருத்தம் புதிய மாத பதிவுகளில் மட்டும் பயன்படும். பழைய பதிவுகள் மாறாது.', en: 'This revision only applies to new monthly entries. Past records are unchanged.' },
   'rentHistory.viewTenantHistory': { ta: '🔗 வாடகை வரலாற்றில் காண்க', en: '🔗 View in Rent History' },
-  'rentHistory.selectHouseHint': { ta: 'குடியிருப்பாளர் வரலாற்றைக் காண ஒரு வீட்டைத் தேர்வு செய்யவும்.', en: 'Select a specific house above to see its previous tenants.' },
+  'rentHistory.tenantHistoryMovedHint': { ta: 'குடியிருப்பாளர் விவரங்கள் மற்றும் முந்தைய குடியிருப்பாளர்கள்:', en: 'Looking for tenant details and previous tenants?' },
+  'rentHistory.viewOnTenantsPage': { ta: '🔗 குடியிருப்பாளர் பக்கத்தில் காண்க', en: '🔗 View on Tenants Page' },
 
   // WhatsApp
   'whatsapp.sendAll': { ta: 'அனைவருக்கும் அனுப்பு', en: 'Send All' },
