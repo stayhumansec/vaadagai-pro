@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
+import { HouseCard, type CardStatus } from '../components/HouseCard';
+import { HouseCardSkeleton } from '../components/Skeleton';
+import { Modal } from '../components/Modal';
 import { ReceiptCard } from '../components/ReceiptCard';
 import { ReceiptPreview } from '../components/ReceiptPreview';
-import { getEBReadings, getHouses, getRecord, getRecords } from '../api';
+import { getEBReadings, getHouses, getRecords } from '../api';
 import type { EBReading, House, RentRecord } from '../types';
 import { prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
@@ -18,54 +21,49 @@ export function Receipt() {
   const { showToast } = useToast();
   const { t } = useLanguage();
   const [houses, setHouses] = useState<House[]>([]);
-  const [houseId, setHouseId] = useState<number | null>(null);
+  const [records, setRecords] = useState<Record<number, RentRecord>>({});
+  const [ebReadings, setEbReadings] = useState<Record<number, EBReading>>({});
+  const [loading, setLoading] = useState(true);
   // This month's rent is normally only settled and recorded next month, so
   // default to last month's data instead of an always-empty current one.
   const [month, setMonth] = useState(prevYM(todayYM()));
-  const [record, setRecord] = useState<RentRecord | null | undefined>(undefined);
-  const [ebReading, setEbReading] = useState<EBReading | null>(null);
+  const [selectedHouseId, setSelectedHouseId] = useState<number | null>(null);
   const [bulkQueue, setBulkQueue] = useState<BulkQueueItem[]>([]);
   const [bulkRunning, setBulkRunning] = useState(false);
   const bulkRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  useEffect(() => { getHouses().then(setHouses); }, []);
+
   useEffect(() => {
-    getHouses().then((list) => {
-      setHouses(list);
-      if (list.length > 0) setHouseId(list[0].id);
-    });
-  }, []);
-
-  const showSingle = async () => {
-    if (!houseId) return;
-    try {
-      const r = await getRecord(houseId, month);
-      setRecord(r);
-      const readings = await getEBReadings({ house_id: houseId, year: month.slice(0, 4) });
-      setEbReading(readings.find((e) => e.month === month) ?? null);
-    } catch {
-      setRecord(null);
-      setEbReading(null);
-    }
-  };
-
-  const bulkDownload = async () => {
-    const [records, ebList] = await Promise.all([
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([
       getRecords({ month_from: month, month_to: month }),
       getEBReadings({ year: month.slice(0, 4) }),
-    ]);
-    if (records.length === 0) {
+    ])
+      .then(([recordList, ebList]) => {
+        if (cancelled) return;
+        const byHouse: Record<number, RentRecord> = {};
+        recordList.forEach((r) => { byHouse[r.house_id] = r; });
+        setRecords(byHouse);
+        const ebByHouse: Record<number, EBReading> = {};
+        ebList.filter((e) => e.month === month).forEach((e) => { ebByHouse[e.house_id] = e; });
+        setEbReadings(ebByHouse);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [month]);
+
+  const bulkDownload = async () => {
+    const queue: BulkQueueItem[] = houses
+      .filter((house) => records[house.id])
+      .map((house) => ({ house, record: records[house.id], ebReading: ebReadings[house.id] ?? null }));
+    if (queue.length === 0) {
       showToast(t('receipt.noRecordsForMonth'), 'warn');
       return;
     }
-    const ebMap: Record<number, EBReading> = {};
-    ebList.filter((e) => e.month === month).forEach((e) => { ebMap[e.house_id] = e; });
-    const queue: BulkQueueItem[] = [];
-    for (const r of records) {
-      const house = houses.find((h) => h.id === r.house_id);
-      if (!house) continue;
-      queue.push({ house, record: r, ebReading: ebMap[r.house_id] ?? null });
-    }
-
     bulkRefs.current = [];
     setBulkQueue(queue);
     setBulkRunning(true);
@@ -99,30 +97,16 @@ export function Receipt() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkRunning]);
 
-  const selectedHouse = houses.find((h) => h.id === houseId);
+  const selectedHouse = houses.find((h) => h.id === selectedHouseId);
+  const selectedRecord = selectedHouseId ? records[selectedHouseId] : undefined;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-sm">
-          {t('common.house')}
-          <select
-            value={houseId ?? ''}
-            onChange={(e) => setHouseId(+e.target.value)}
-            className="mt-1 block rounded-lg border border-gray-3 px-3 py-2"
-          >
-            {houses.map((h) => (
-              <option key={h.id} value={h.id}>{h.id} — {h.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
           {t('common.month')}
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="mt-1 block rounded-lg border border-gray-3 px-3 py-2" />
         </label>
-        <button type="button" onClick={showSingle} className="rounded-lg bg-brand-blue px-3 py-2 text-sm text-white hover:opacity-90">
-          {t('receipt.single')}
-        </button>
         <button
           type="button"
           onClick={bulkDownload}
@@ -133,12 +117,41 @@ export function Receipt() {
         </button>
       </div>
 
-      {record === null && <p className="text-sm text-brand-red">{t('receipt.noRecord')}</p>}
+      <p className="text-sm text-gray">{t('receipt.pickHouseHint')}</p>
 
-      {record && selectedHouse && (
-        <div className="rounded-xl border border-gray-3 bg-gray-4 p-6">
-          <ReceiptPreview house={selectedHouse} record={record} ebReading={ebReading} showPrint showDownload showShare />
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3">
+        {loading && houses.length === 0
+          ? Array.from({ length: 15 }).map((_, i) => <HouseCardSkeleton key={i} />)
+          : houses.map((house) => {
+              const record = records[house.id];
+              const status: CardStatus = house.status === 'Inactive' ? 'inactive' : record ? record.pay_status : 'pending';
+              return (
+                <HouseCard
+                  key={house.id}
+                  house={house}
+                  status={status}
+                  amount={record?.total}
+                  munBakki={record?.mun_bakki}
+                  onClick={() => setSelectedHouseId(house.id)}
+                />
+              );
+            })}
+      </div>
+      {!loading && houses.length === 0 && (
+        <div className="rounded-xl border border-dashed border-gray-3 bg-white p-8 text-center">
+          <p className="text-3xl">🏠</p>
+          <p className="mt-2 text-sm text-gray">{t('dashboard.noHouses')}</p>
         </div>
+      )}
+
+      {selectedHouse && (
+        <Modal title={`${t('common.house')} ${selectedHouse.id} — ${selectedHouse.name}`} onClose={() => setSelectedHouseId(null)}>
+          {selectedRecord ? (
+            <ReceiptPreview house={selectedHouse} record={selectedRecord} ebReading={ebReadings[selectedHouse.id] ?? null} showPrint showDownload showShare />
+          ) : (
+            <p className="py-6 text-center text-sm text-brand-red">{t('receipt.noRecord')}</p>
+          )}
+        </Modal>
       )}
 
       <div className="fixed left-[-9999px] top-0">

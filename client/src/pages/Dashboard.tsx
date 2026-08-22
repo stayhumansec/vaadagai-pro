@@ -4,8 +4,6 @@ import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
 import { HouseCardSkeleton, MetricCardSkeleton } from '../components/Skeleton';
 import { Reveal } from '../components/Reveal';
-import { Modal } from '../components/Modal';
-import { ReceiptPreview } from '../components/ReceiptPreview';
 import { getDashboardSummary, getEBReadings, getHouses, getMonthlyReport, getRecords } from '../api';
 import type { DashboardSummary, EBReading, House, MonthlyReportRow, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
@@ -21,13 +19,11 @@ export function Dashboard() {
   const { t, language } = useLanguage();
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<Record<number, RentRecord>>({});
-  const [ebReadings, setEbReadings] = useState<Record<number, EBReading>>({});
   const [ebByMonth, setEbByMonth] = useState<Record<string, number>>({});
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReportRow[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedHouseId, setSelectedHouseId] = useState<number | null>(null);
 
   // This month's rent is normally only settled and recorded next month, so
   // default to last month's data instead of an always-empty current one.
@@ -72,9 +68,6 @@ export function Dashboard() {
         const byHouse: Record<number, RentRecord> = {};
         recordList.forEach((r) => { byHouse[r.house_id] = r; });
         setRecords(byHouse);
-        const ebByHouse: Record<number, EBReading> = {};
-        ebList.filter((e) => e.month === month).forEach((e) => { ebByHouse[e.house_id] = e; });
-        setEbReadings(ebByHouse);
         const ebByMonthMap: Record<string, number> = {};
         ebList.forEach((e) => { ebByMonthMap[e.month] = (ebByMonthMap[e.month] ?? 0) + e.amount; });
         setEbByMonth(ebByMonthMap);
@@ -112,9 +105,6 @@ export function Dashboard() {
           balance: r.balance,
           eb: houseYearEb.find((e) => e.month === r.month)?.amount ?? 0,
         }));
-
-  const selectedHouse = houses.find((h) => h.id === selectedHouseId);
-  const selectedRecord = selectedHouseId ? records[selectedHouseId] : undefined;
 
   return (
     <div className="space-y-4">
@@ -175,10 +165,7 @@ export function Dashboard() {
                     status={status}
                     amount={record?.total}
                     munBakki={record?.mun_bakki}
-                    onClick={() => {
-                      setSelectedHouseId(house.id);
-                      setChartHouseId(house.id);
-                    }}
+                    onClick={() => setChartHouseId(house.id)}
                   />
                 );
               })}
@@ -243,16 +230,6 @@ export function Dashboard() {
           )}
         </Reveal>
       </div>
-
-      {selectedHouse && (
-        <Modal title={`${t('common.house')} ${selectedHouse.id} — ${selectedHouse.name}`} onClose={() => setSelectedHouseId(null)}>
-          {selectedRecord ? (
-            <ReceiptPreview house={selectedHouse} record={selectedRecord} ebReading={ebReadings[selectedHouse.id] ?? null} showShare />
-          ) : (
-            <p className="py-6 text-center text-sm text-brand-red">{t('receipt.noRecord')}</p>
-          )}
-        </Modal>
-      )}
     </div>
   );
 }
