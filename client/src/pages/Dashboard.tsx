@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
 import { HouseCardSkeleton, MetricCardSkeleton } from '../components/Skeleton';
 import { Reveal } from '../components/Reveal';
-import { getDashboardSummary, getHouses, getMonthlyReport, getRecords } from '../api';
-import type { DashboardSummary, House, MonthlyReportRow, PayStatus, RentRecord } from '../types';
+import { getDashboardSummary, getEBReadings, getHouses, getMonthlyReport, getRecords } from '../api';
+import type { DashboardSummary, EBReading, House, MonthlyReportRow, PayStatus, RentRecord } from '../types';
 import { fmt, mlabel, prevYM, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
 import { useLanguage } from '../context/LanguageContext';
@@ -36,6 +36,7 @@ export function Dashboard() {
   const { showToast } = useToast();
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<Record<number, RentRecord>>({});
+  const [ebByMonth, setEbByMonth] = useState<Record<string, number>>({});
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReportRow[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [prevSummary, setPrevSummary] = useState<DashboardSummary | null>(null);
@@ -53,13 +54,19 @@ export function Dashboard() {
   // month).
   const [chartHouseId, setChartHouseId] = useState<number | null>(null);
   const [houseYearRecords, setHouseYearRecords] = useState<RentRecord[]>([]);
+  const [houseYearEb, setHouseYearEb] = useState<EBReading[]>([]);
   const chartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (chartHouseId == null) return;
     let cancelled = false;
-    getRecords({ house_id: chartHouseId, month_from: `${year}-01`, month_to: `${year}-12` }).then((recs) => {
-      if (!cancelled) setHouseYearRecords(recs);
+    Promise.all([
+      getRecords({ house_id: chartHouseId, month_from: `${year}-01`, month_to: `${year}-12` }),
+      getEBReadings({ house_id: chartHouseId, year }),
+    ]).then(([recs, eb]) => {
+      if (cancelled) return;
+      setHouseYearRecords(recs);
+      setHouseYearEb(eb);
     });
     return () => { cancelled = true; };
   }, [chartHouseId, year]);
@@ -73,14 +80,18 @@ export function Dashboard() {
       getRecords({ month_from: month, month_to: month }),
       getDashboardSummary(month),
       getDashboardSummary(prevYM(month)),
+      getEBReadings({ year }),
       getMonthlyReport(year),
     ])
-      .then(([houseList, recordList, dashboardSummary, prevDashboardSummary, monthlyData]) => {
+      .then(([houseList, recordList, dashboardSummary, prevDashboardSummary, ebList, monthlyData]) => {
         if (cancelled) return;
         setHouses(houseList);
         const byHouse: Record<number, RentRecord> = {};
         recordList.forEach((r) => { byHouse[r.house_id] = r; });
         setRecords(byHouse);
+        const ebByMonthMap: Record<string, number> = {};
+        ebList.forEach((e) => { ebByMonthMap[e.month] = (ebByMonthMap[e.month] ?? 0) + e.amount; });
+        setEbByMonth(ebByMonthMap);
         setMonthlyReport(monthlyData);
         setSummary(dashboardSummary);
         setPrevSummary(prevDashboardSummary);
@@ -136,7 +147,7 @@ export function Dashboard() {
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
       const scope = chartHouse ? `house${chartHouse.id}` : 'all';
-      a.download = `chart_${year}_${scope}.png`;
+      a.download = `charts_${year}_${scope}.png`;
       a.click();
     } catch {
       showToast(t('dashboard.chartDownloadFailed'), 'err');
@@ -148,6 +159,7 @@ export function Dashboard() {
         month: mlabel(m.month, language),
         collected: m.collected,
         balance: m.balance,
+        eb: ebByMonth[m.month] ?? 0,
       }))
     : houseYearRecords
         .slice()
@@ -156,6 +168,7 @@ export function Dashboard() {
           month: mlabel(r.month, language),
           collected: r.received,
           balance: r.balance,
+          eb: houseYearEb.find((e) => e.month === r.month)?.amount ?? 0,
         }));
 
   return (
@@ -298,23 +311,42 @@ export function Dashboard() {
       </div>
 
       <Reveal delayMs={140}>
-        <div ref={chartRef} className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
-          <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.collectionChart')}</p>
-          {chartData.length === 0 ? (
-            <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="month" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip formatter={(v) => fmt(Number(v))} />
-                <Legend />
-                <Bar dataKey="collected" name={t('common.collected')} fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="balance" name={t('common.balance')} fill="#ef4444" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+        <div ref={chartRef} className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+            <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.collectionChart')}</p>
+            {chartData.length === 0 ? (
+              <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="month" fontSize={12} />
+                  <YAxis fontSize={12} />
+                  <Tooltip formatter={(v) => fmt(Number(v))} />
+                  <Legend />
+                  <Bar dataKey="collected" name={t('common.collected')} fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="balance" name={t('common.balance')} fill="#ef4444" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-gray-3/70 bg-white p-4 shadow-soft">
+            <p className="mb-2 text-sm font-medium text-navy">{t('dashboard.ebChart')}</p>
+            {chartData.length === 0 ? (
+              <p className="py-10 text-center text-sm text-gray">{t('report.noDataHint')}</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="month" fontSize={12} />
+                  <YAxis fontSize={12} />
+                  <Tooltip formatter={(v) => fmt(Number(v))} />
+                  <Line type="monotone" dataKey="eb" name={t('common.eb')} stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       </Reveal>
     </div>
