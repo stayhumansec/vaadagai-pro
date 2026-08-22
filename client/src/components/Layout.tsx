@@ -14,8 +14,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { path: '/', labelKey: 'nav.dashboard', icon: '📊', mobile: true },
-  { path: '/monthly', labelKey: 'nav.monthly', icon: '📝', mobile: true },
-  { path: '/bulk', labelKey: 'nav.bulk', icon: '📋', mobile: true },
+  { path: '/monthly', labelKey: 'nav.rentEntry', icon: '📝', mobile: true },
   { path: '/ledger', labelKey: 'nav.ledger', icon: '📒', mobile: true },
   { path: '/receipt', labelKey: 'nav.receipt', icon: '🧾' },
   { path: '/eb', labelKey: 'nav.eb', mobileLabel: 'EB', icon: '⚡', mobile: true },
