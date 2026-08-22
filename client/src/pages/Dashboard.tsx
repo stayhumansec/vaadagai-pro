@@ -4,6 +4,8 @@ import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContai
 import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
 import { HouseCardSkeleton, MetricCardSkeleton } from '../components/Skeleton';
+import { Modal } from '../components/Modal';
+import { ReceiptCard } from '../components/ReceiptCard';
 import { Reveal } from '../components/Reveal';
 import { getDashboardSummary, getEBReadings, getHouses, getMonthlyReport, getRecords } from '../api';
 import type { DashboardSummary, EBReading, House, MonthlyReportRow, PayStatus, RentRecord } from '../types';
@@ -36,6 +38,7 @@ export function Dashboard() {
   const { showToast } = useToast();
   const [houses, setHouses] = useState<House[]>([]);
   const [records, setRecords] = useState<Record<number, RentRecord>>({});
+  const [ebReadings, setEbReadings] = useState<Record<number, EBReading>>({});
   const [ebByMonth, setEbByMonth] = useState<Record<string, number>>({});
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReportRow[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -53,6 +56,7 @@ export function Dashboard() {
   // summary metrics/house grid above (which always reflect the selected
   // month).
   const [chartHouseId, setChartHouseId] = useState<number | null>(null);
+  const [selectedHouseId, setSelectedHouseId] = useState<number | null>(null);
   const [houseYearRecords, setHouseYearRecords] = useState<RentRecord[]>([]);
   const [houseYearEb, setHouseYearEb] = useState<EBReading[]>([]);
   const collectionChartRef = useRef<HTMLDivElement>(null);
@@ -90,6 +94,9 @@ export function Dashboard() {
         const byHouse: Record<number, RentRecord> = {};
         recordList.forEach((r) => { byHouse[r.house_id] = r; });
         setRecords(byHouse);
+        const ebByHouse: Record<number, EBReading> = {};
+        ebList.filter((e) => e.month === month).forEach((e) => { ebByHouse[e.house_id] = e; });
+        setEbReadings(ebByHouse);
         const ebByMonthMap: Record<string, number> = {};
         ebList.forEach((e) => { ebByMonthMap[e.month] = (ebByMonthMap[e.month] ?? 0) + e.amount; });
         setEbByMonth(ebByMonthMap);
@@ -118,6 +125,8 @@ export function Dashboard() {
   const efficiencyDelta = summary && prevSummary ? efficiency - prevEfficiency : null;
 
   const chartHouse = houses.find((h) => h.id === chartHouseId);
+  const selectedHouse = houses.find((h) => h.id === selectedHouseId);
+  const selectedRecord = selectedHouseId ? records[selectedHouseId] : undefined;
 
   const statusCounts: Record<PayStatus | 'pending', number> = { full: 0, partial: 0, none: 0, pending: 0 };
   houses.forEach((house) => {
@@ -280,7 +289,10 @@ export function Dashboard() {
                     status={status}
                     amount={record?.total}
                     munBakki={record?.mun_bakki}
-                    onClick={() => setChartHouseId(house.id)}
+                    onClick={() => {
+                      setChartHouseId(house.id);
+                      setSelectedHouseId(house.id);
+                    }}
                   />
                 );
               })}
@@ -373,6 +385,18 @@ export function Dashboard() {
           </div>
         </div>
       </Reveal>
+
+      {selectedHouse && (
+        <Modal title={`${t('common.house')} ${selectedHouse.id} — ${selectedHouse.name}`} onClose={() => setSelectedHouseId(null)}>
+          {selectedRecord ? (
+            <div className="flex justify-center">
+              <ReceiptCard house={selectedHouse} record={selectedRecord} ebReading={ebReadings[selectedHouse.id] ?? null} />
+            </div>
+          ) : (
+            <p className="py-6 text-center text-sm text-brand-red">{t('receipt.noRecord')}</p>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
