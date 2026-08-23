@@ -5,7 +5,7 @@ import { HouseCard, type CardStatus } from '../components/HouseCard';
 import { MetricCard } from '../components/MetricCard';
 import { HouseCardSkeleton, MetricCardSkeleton } from '../components/Skeleton';
 import { Modal } from '../components/Modal';
-import { ReceiptCard } from '../components/ReceiptCard';
+import { ReceiptPreview } from '../components/ReceiptPreview';
 import { Reveal } from '../components/Reveal';
 import { getDashboardSummary, getEBReadings, getHouses, getMonthlyReport, getRecords } from '../api';
 import type { DashboardSummary, EBReading, House, MonthlyReportRow, PayStatus, RentRecord } from '../types';
@@ -389,9 +389,7 @@ export function Dashboard() {
       {selectedHouse && (
         <Modal title={`${t('common.house')} ${selectedHouse.id} — ${selectedHouse.name}`} onClose={() => setSelectedHouseId(null)}>
           {selectedRecord ? (
-            <div className="flex justify-center">
-              <ReceiptCard house={selectedHouse} record={selectedRecord} ebReading={ebReadings[selectedHouse.id] ?? null} />
-            </div>
+            <ReceiptPreview house={selectedHouse} record={selectedRecord} ebReading={ebReadings[selectedHouse.id] ?? null} showShare />
           ) : (
             <p className="py-6 text-center text-sm text-brand-red">{t('receipt.noRecord')}</p>
           )}
