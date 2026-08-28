@@ -169,6 +169,7 @@ export const translations: Dict = {
   'tenants.members': { ta: 'உறுப்பினர்கள்', en: 'Members' },
   'tenants.moveInDate': { ta: 'குடி வந்த தேதி', en: 'Move-in Date' },
   'tenants.moveOutDate': { ta: 'குடி வெளியேறிய தேதி', en: 'Move-out Date' },
+  'tenants.advance': { ta: 'முன்பணம்', en: 'Advance' },
   'tenants.proofType': { ta: 'ஆவண வகை', en: 'Proof Type' },
   'tenants.proofNumber': { ta: 'ஆவண எண்', en: 'Proof Number' },
   'tenants.proofFile': { ta: 'ஆவண கோப்பு', en: 'Proof File' },

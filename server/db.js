@@ -27,7 +27,8 @@ function migrate() {
       move_in_date TEXT,
       move_out_date TEXT,
       status TEXT DEFAULT 'Active',
-      proof_file_path TEXT
+      proof_file_path TEXT,
+      advance INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS records (
@@ -88,6 +89,7 @@ function migrate() {
       move_in_date TEXT,
       move_out_date TEXT,
       created_at TEXT DEFAULT (datetime('now')),
+      advance INTEGER DEFAULT 0,
       FOREIGN KEY (house_id) REFERENCES houses(id)
     );
 
@@ -118,6 +120,18 @@ function migrate() {
   const recordColumns = db.prepare("PRAGMA table_info(records)").all().map((c) => c.name);
   if (recordColumns.includes('other') && !recordColumns.includes('maintenance')) {
     db.exec('ALTER TABLE records RENAME COLUMN other TO maintenance');
+  }
+
+  // advance (security deposit) was added after houses/tenant_history already
+  // existed in deployed DBs -- CREATE TABLE IF NOT EXISTS above only helps a
+  // fresh DB, so add the column here for one already on disk.
+  const houseColumns = db.prepare("PRAGMA table_info(houses)").all().map((c) => c.name);
+  if (!houseColumns.includes('advance')) {
+    db.exec('ALTER TABLE houses ADD COLUMN advance INTEGER DEFAULT 0');
+  }
+  const tenantHistoryColumns = db.prepare("PRAGMA table_info(tenant_history)").all().map((c) => c.name);
+  if (!tenantHistoryColumns.includes('advance')) {
+    db.exec('ALTER TABLE tenant_history ADD COLUMN advance INTEGER DEFAULT 0');
   }
 }
 

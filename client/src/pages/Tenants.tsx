@@ -79,6 +79,7 @@ interface HouseForm {
   move_out_date: string;
   proof_type: string;
   proof_number: string;
+  advance: number;
 }
 
 function toForm(house: House): HouseForm {
@@ -96,6 +97,7 @@ function toForm(house: House): HouseForm {
     move_out_date: house.move_out_date ?? '',
     proof_type: house.proof_type,
     proof_number: house.proof_number ?? '',
+    advance: house.advance,
   };
 }
 
@@ -220,6 +222,7 @@ export function Tenants() {
         move_out_date: editing.status === 'Inactive' ? editing.move_out_date || null : null,
         proof_type: editing.proof_type,
         proof_number: editing.proof_number || null,
+        advance: editing.advance,
       });
       if (proofFile) {
         await uploadHouseProof(editing.id, proofFile);
@@ -312,14 +315,14 @@ export function Tenants() {
           if (r[TENANT_UPLOAD_HEADERS.moveIn]) row.move_in_date = r[TENANT_UPLOAD_HEADERS.moveIn];
           if (r[TENANT_UPLOAD_HEADERS.proofType]) row.proof_type = r[TENANT_UPLOAD_HEADERS.proofType];
           if (r[TENANT_UPLOAD_HEADERS.proofNumber]) row.proof_number = r[TENANT_UPLOAD_HEADERS.proofNumber];
-          if (status) {
-            row.status = status;
-            // An Active tenant can't also carry a move-out date -- clear it,
-            // same invariant the single-house edit form enforces.
-            row.move_out_date = status === 'Active' ? null : r[TENANT_UPLOAD_HEADERS.moveOut] || null;
-          } else if (r[TENANT_UPLOAD_HEADERS.moveOut]) {
-            row.move_out_date = r[TENANT_UPLOAD_HEADERS.moveOut];
-          }
+          if (status) row.status = status;
+          // Bulk upload can reconstruct full tenant-turnover history: a row's
+          // status describes the house today, not necessarily that specific
+          // row's tenant, so an "Active" row can still legitimately carry a
+          // real move_out_date (an earlier stint superseded by a later row
+          // for the same house_id). Pass it through as-is; the server clears
+          // move_out_date for a genuinely new occupant on its own.
+          if (r[TENANT_UPLOAD_HEADERS.moveOut]) row.move_out_date = r[TENANT_UPLOAD_HEADERS.moveOut];
           return row;
         });
       if (parsed.length === 0) {
@@ -622,6 +625,16 @@ export function Tenants() {
               </label>
             </div>
 
+            <label className="block text-sm">
+              {t('tenants.advance')} ₹
+              <input
+                type="number"
+                value={editing.advance}
+                onChange={(e) => setEditing({ ...editing, advance: +e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+              />
+            </label>
+
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
                 {t('tenants.moveInDate')}
@@ -725,6 +738,7 @@ export function Tenants() {
                       <th className="px-2 py-1">{t('common.phone')}</th>
                       <th className="px-2 py-1">{t('tenants.moveInDate')}</th>
                       <th className="px-2 py-1">{t('tenants.moveOutDate')}</th>
+                      <th className="px-2 py-1">{t('tenants.advance')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -734,10 +748,11 @@ export function Tenants() {
                         <td className="px-2 py-1">{entry.phone ?? '—'}</td>
                         <td className="px-2 py-1">{entry.move_in_date ?? '—'}</td>
                         <td className="px-2 py-1">{entry.move_out_date ?? '—'}</td>
+                        <td className="px-2 py-1">{fmt(entry.advance)}</td>
                       </tr>
                     ))}
                     {tenantHistory.length === 0 && (
-                      <tr><td colSpan={4} className="px-2 py-4 text-center text-gray">{t('common.noRecords')}</td></tr>
+                      <tr><td colSpan={5} className="px-2 py-4 text-center text-gray">{t('common.noRecords')}</td></tr>
                     )}
                   </tbody>
                 </table>
