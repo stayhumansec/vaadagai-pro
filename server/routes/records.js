@@ -132,6 +132,23 @@ router.post('/', auth, (req, res) => {
   res.json(upsertRecord(req.body));
 });
 
+router.post('/bulk-delete', auth, (req, res) => {
+  const ownerEmail = db.prepare("SELECT value FROM settings WHERE key = 'owner_email'").get()?.value;
+  if (!ownerEmail || req.user.email?.toLowerCase() !== ownerEmail) {
+    return res.status(403).json({ error: 'Only the owner can delete records' });
+  }
+
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'ids must be a non-empty array' });
+  }
+
+  const del = db.prepare('DELETE FROM records WHERE id = ?');
+  const run = db.transaction((idList) => idList.reduce((count, id) => count + del.run(id).changes, 0));
+  const deleted = run(ids);
+  res.json({ deleted });
+});
+
 router.delete('/:id', auth, (req, res) => {
   const ownerEmail = db.prepare("SELECT value FROM settings WHERE key = 'owner_email'").get()?.value;
   if (!ownerEmail || req.user.email?.toLowerCase() !== ownerEmail) {

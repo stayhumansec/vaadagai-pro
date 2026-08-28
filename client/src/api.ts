@@ -81,6 +81,8 @@ export const saveRecordsBulk = (data: Partial<RentRecord>[]) =>
 export const autoGenerateRecords = (month: string, house_ids?: number[]) =>
   api.post<AutoGenerateResult>('/records/auto-generate', { month, house_ids }).then((r) => r.data);
 export const deleteRecord = (id: number) => api.delete<{ success: boolean }>(`/records/${id}`).then((r) => r.data);
+export const deleteRecordsBulk = (ids: number[]) =>
+  api.post<{ deleted: number }>('/records/bulk-delete', { ids }).then((r) => r.data);
 
 // EB readings
 export const getEBReadings = (params: { house_id?: number; year?: string }) =>

@@ -123,6 +123,9 @@ export const translations: Dict = {
   'ledger.deleteConfirm': { ta: 'இந்த பதிவை நிரந்தரமாக நீக்க வேண்டுமா? இதை மீட்டெடுக்க முடியாது.', en: 'Permanently delete this record? This cannot be undone.' },
   'ledger.deleted': { ta: 'பதிவு நீக்கப்பட்டது', en: 'Record deleted' },
   'ledger.deleteFailed': { ta: 'நீக்க முடியவில்லை', en: 'Could not delete' },
+  'ledger.selectAll': { ta: 'அனைத்தையும் தேர்வு செய்', en: 'Select all' },
+  'ledger.deleteSelected': { ta: 'தேர்ந்தெடுத்தவற்றை நீக்கு', en: 'Delete Selected' },
+  'ledger.bulkDeleteConfirm': { ta: '{count} பதிவுகளை நிரந்தரமாக நீக்க வேண்டுமா? இதை மீட்டெடுக்க முடியாது.', en: 'Permanently delete {count} records? This cannot be undone.' },
 
   // Receipt
   'receipt.title': { ta: '🏠 வாடகை ரசீது', en: '🏠 Rent Receipt' },
