@@ -17,6 +17,8 @@ const TENANT_UPLOAD_HEADERS = {
   water: 'தண்ணீர்',
   maintenance: 'பராமரிப்பு',
   ebRate: 'EB விலை',
+  advance: 'முன்பணம்',
+  advanceDate: 'முன்பணம் பெற்ற தேதி',
   moveIn: 'குடி வந்த தேதி',
   moveOut: 'குடி வெளியேறிய தேதி',
   status: 'நிலை (செயலில்/செயலற்றது)',
@@ -27,16 +29,16 @@ const TENANT_UPLOAD_HEADERS = {
 const TENANT_EXPORT_HEADERS = [
   TENANT_UPLOAD_HEADERS.house, TENANT_UPLOAD_HEADERS.name, TENANT_UPLOAD_HEADERS.phone,
   TENANT_UPLOAD_HEADERS.members, TENANT_UPLOAD_HEADERS.rent, TENANT_UPLOAD_HEADERS.water,
-  TENANT_UPLOAD_HEADERS.maintenance, TENANT_UPLOAD_HEADERS.ebRate, TENANT_UPLOAD_HEADERS.moveIn,
-  TENANT_UPLOAD_HEADERS.moveOut, TENANT_UPLOAD_HEADERS.status, TENANT_UPLOAD_HEADERS.proofType,
-  TENANT_UPLOAD_HEADERS.proofNumber,
+  TENANT_UPLOAD_HEADERS.maintenance, TENANT_UPLOAD_HEADERS.ebRate, TENANT_UPLOAD_HEADERS.advance,
+  TENANT_UPLOAD_HEADERS.advanceDate, TENANT_UPLOAD_HEADERS.moveIn, TENANT_UPLOAD_HEADERS.moveOut,
+  TENANT_UPLOAD_HEADERS.status, TENANT_UPLOAD_HEADERS.proofType, TENANT_UPLOAD_HEADERS.proofNumber,
 ];
 
 function houseExportRow(h: House): (string | number)[] {
   return [
     h.id, h.name, h.phone ?? '', h.members, h.default_rent, h.water, h.maintenance, h.eb_rate,
-    h.move_in_date ?? '', h.move_out_date ?? '', h.status === 'Active' ? 'செயலில்' : 'செயலற்றது',
-    h.proof_type, h.proof_number ?? '',
+    h.advance, h.advance_date ?? '', h.move_in_date ?? '', h.move_out_date ?? '',
+    h.status === 'Active' ? 'செயலில்' : 'செயலற்றது', h.proof_type, h.proof_number ?? '',
   ];
 }
 
@@ -315,6 +317,8 @@ export function Tenants() {
           if (r[TENANT_UPLOAD_HEADERS.water]) row.water = Number(r[TENANT_UPLOAD_HEADERS.water]);
           if (r[TENANT_UPLOAD_HEADERS.maintenance]) row.maintenance = Number(r[TENANT_UPLOAD_HEADERS.maintenance]);
           if (r[TENANT_UPLOAD_HEADERS.ebRate]) row.eb_rate = Number(r[TENANT_UPLOAD_HEADERS.ebRate]);
+          if (r[TENANT_UPLOAD_HEADERS.advance]) row.advance = Number(r[TENANT_UPLOAD_HEADERS.advance]);
+          if (r[TENANT_UPLOAD_HEADERS.advanceDate]) row.advance_date = r[TENANT_UPLOAD_HEADERS.advanceDate];
           if (r[TENANT_UPLOAD_HEADERS.moveIn]) row.move_in_date = r[TENANT_UPLOAD_HEADERS.moveIn];
           if (r[TENANT_UPLOAD_HEADERS.proofType]) row.proof_type = r[TENANT_UPLOAD_HEADERS.proofType];
           if (r[TENANT_UPLOAD_HEADERS.proofNumber]) row.proof_number = r[TENANT_UPLOAD_HEADERS.proofNumber];
