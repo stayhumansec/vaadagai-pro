@@ -4,6 +4,7 @@ const express = require('express');
 const multer = require('multer');
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { upsertRentHistory } = require('../lib/rent');
 
 const router = express.Router();
 
@@ -109,10 +110,9 @@ function applyHouseUpdate(house, fields, note) {
   // Rent History page, instead of silently overwriting the house row.
   if (rentChanged) {
     const effectiveFrom = today.slice(0, 7);
-    db.prepare(`
-      INSERT INTO rent_history (house_id, effective_from, rent, water, maintenance, eb_rate, note)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(updated.id, effectiveFrom, updated.default_rent, updated.water, updated.maintenance, updated.eb_rate, note);
+    upsertRentHistory(updated.id, effectiveFrom, {
+      rent: updated.default_rent, water: updated.water, maintenance: updated.maintenance, eb_rate: updated.eb_rate, note,
+    });
   }
 
   return db.prepare('SELECT * FROM houses WHERE id = ?').get(house.id);
