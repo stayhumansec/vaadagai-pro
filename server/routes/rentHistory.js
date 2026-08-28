@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { upsertRentHistory } = require('../lib/rent');
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ router.get('/', auth, (req, res) => {
   let query = 'SELECT * FROM rent_history WHERE 1=1';
   const params = [];
   if (house_id) { query += ' AND house_id = ?'; params.push(house_id); }
-  query += ' ORDER BY house_id, effective_from DESC';
+  query += ' ORDER BY house_id, effective_from DESC, id DESC';
   res.json(db.prepare(query).all(...params));
 });
 
@@ -19,11 +20,7 @@ router.post('/', auth, (req, res) => {
     return res.status(400).json({ error: 'house_id, effective_from, and rent are required' });
   }
 
-  const info = db.prepare(`
-    INSERT INTO rent_history (house_id, effective_from, rent, water, maintenance, eb_rate, note)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(house_id, effective_from, rent, water, maintenance, eb_rate, note);
-  res.json(db.prepare('SELECT * FROM rent_history WHERE id = ?').get(info.lastInsertRowid));
+  res.json(upsertRentHistory(house_id, effective_from, { rent, water, maintenance, eb_rate, note }));
 });
 
 module.exports = router;
