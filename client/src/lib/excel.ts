@@ -43,6 +43,17 @@ function cellValueToString(value: unknown): string {
     const d = String(value.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
+  // A formula cell's value isn't a scalar — ExcelJS hands back
+  // { formula, result } (or { sharedFormula, result } for cells sharing
+  // another cell's formula). Use the last-calculated result instead of
+  // stringifying the object. A formula Excel never recalculated has no
+  // cached result at all — treat that as blank rather than leaking
+  // "[object Object]" into the imported data.
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    if ('result' in obj) return cellValueToString(obj.result);
+    if ('formula' in obj || 'sharedFormula' in obj) return '';
+  }
   return String(value).trim();
 }
 
