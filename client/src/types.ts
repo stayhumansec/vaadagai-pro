@@ -17,6 +17,7 @@ export interface House {
   status: HouseStatus;
   proof_file_path: string | null;
   advance: number;
+  advance_date: string | null;
 }
 
 export interface RentRecord {
@@ -61,6 +62,7 @@ export interface TenantHistoryEntry {
   move_out_date: string | null;
   created_at: string;
   advance: number;
+  advance_date: string | null;
 }
 
 export interface RentHistoryEntry {
