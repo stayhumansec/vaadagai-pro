@@ -126,6 +126,29 @@ router.put('/:id', auth, (req, res) => {
   res.json(run());
 });
 
+// A bulk tenant row whose house_id has no matching house is a new house to
+// create (e.g. re-uploading after a house was deleted, or setting up a
+// fleet from scratch), not an error -- mirrors POST / but with the
+// caller-supplied id instead of an auto-incremented one.
+function createHouseFromBulkRow(id, fields) {
+  const {
+    name, phone, default_rent = 5000, water = 200, maintenance = 0, members = 1,
+    eb_rate = 6.0, proof_type = 'Aadhaar', proof_number, move_in_date, move_out_date, status = 'Active',
+  } = fields;
+
+  db.prepare(`
+    INSERT INTO houses (
+      id, name, phone, default_rent, water, maintenance, members, eb_rate,
+      proof_type, proof_number, move_in_date, move_out_date, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id, name || `வீடு ${id}`, phone || null, default_rent, water, maintenance,
+    members, eb_rate, proof_type, proof_number || null, move_in_date || null, move_out_date || null, status
+  );
+
+  return db.prepare('SELECT * FROM houses WHERE id = ?').get(id);
+}
+
 router.post('/bulk', auth, (req, res) => {
   if (!Array.isArray(req.body)) return res.status(400).json({ error: 'Body must be an array of tenant rows' });
 
@@ -136,16 +159,20 @@ router.post('/bulk', auth, (req, res) => {
       errors.push({ row: i + 1, error: 'house_id is required' });
       return;
     }
-    const house = db.prepare('SELECT * FROM houses WHERE id = ?').get(r.house_id);
-    if (!house) {
-      errors.push({ row: i + 1, error: `house_id ${r.house_id} not found` });
-      return;
-    }
-    valid.push({ house, fields: r });
+    valid.push(r);
   });
 
+  // Look up each row's house inside the transaction, not in a pre-pass --
+  // an upload legitimately has more than one row for the same new house_id
+  // (e.g. a second row logging a later rent revision), and a pre-pass would
+  // see "not found" for every occurrence and try to INSERT the same id twice.
   const run = db.transaction((rows) =>
-    rows.map(({ house, fields }) => applyHouseUpdate(house, fields, 'Updated from bulk tenant upload'))
+    rows.map((fields) => {
+      const house = db.prepare('SELECT * FROM houses WHERE id = ?').get(fields.house_id);
+      return house
+        ? applyHouseUpdate(house, fields, 'Updated from bulk tenant upload')
+        : createHouseFromBulkRow(fields.house_id, fields);
+    })
   );
   const saved = run(valid);
   res.json({ saved: saved.length, errors });
