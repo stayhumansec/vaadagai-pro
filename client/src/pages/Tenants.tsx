@@ -80,6 +80,7 @@ interface HouseForm {
   proof_type: string;
   proof_number: string;
   advance: number;
+  advance_date: string;
 }
 
 function toForm(house: House): HouseForm {
@@ -98,6 +99,7 @@ function toForm(house: House): HouseForm {
     proof_type: house.proof_type,
     proof_number: house.proof_number ?? '',
     advance: house.advance,
+    advance_date: house.advance_date ?? '',
   };
 }
 
@@ -223,6 +225,7 @@ export function Tenants() {
         proof_type: editing.proof_type,
         proof_number: editing.proof_number || null,
         advance: editing.advance,
+        advance_date: editing.advance_date || null,
       });
       if (proofFile) {
         await uploadHouseProof(editing.id, proofFile);
@@ -625,15 +628,26 @@ export function Tenants() {
               </label>
             </div>
 
-            <label className="block text-sm">
-              {t('tenants.advance')} ₹
-              <input
-                type="number"
-                value={editing.advance}
-                onChange={(e) => setEditing({ ...editing, advance: +e.target.value })}
-                className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
-              />
-            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm">
+                {t('tenants.advance')} ₹
+                <input
+                  type="number"
+                  value={editing.advance}
+                  onChange={(e) => setEditing({ ...editing, advance: +e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+                />
+              </label>
+              <label className="text-sm">
+                {t('tenants.advanceDate')}
+                <input
+                  type="date"
+                  value={editing.advance_date}
+                  onChange={(e) => setEditing({ ...editing, advance_date: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-gray-3 px-2 py-1.5"
+                />
+              </label>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
@@ -748,7 +762,10 @@ export function Tenants() {
                         <td className="px-2 py-1">{entry.phone ?? '—'}</td>
                         <td className="px-2 py-1">{entry.move_in_date ?? '—'}</td>
                         <td className="px-2 py-1">{entry.move_out_date ?? '—'}</td>
-                        <td className="px-2 py-1">{fmt(entry.advance)}</td>
+                        <td className="px-2 py-1">
+                          {fmt(entry.advance)}
+                          {entry.advance_date && <span className="text-gray"> ({entry.advance_date})</span>}
+                        </td>
                       </tr>
                     ))}
                     {tenantHistory.length === 0 && (

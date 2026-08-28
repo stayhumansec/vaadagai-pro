@@ -32,7 +32,7 @@ const upload = multer({
 
 const HOUSE_FIELDS = [
   'name', 'phone', 'default_rent', 'water', 'maintenance', 'members',
-  'eb_rate', 'proof_type', 'proof_number', 'move_in_date', 'move_out_date', 'status', 'advance',
+  'eb_rate', 'proof_type', 'proof_number', 'move_in_date', 'move_out_date', 'status', 'advance', 'advance_date',
 ];
 
 router.get('/', auth, (req, res) => {
@@ -45,17 +45,17 @@ router.post('/', auth, (req, res) => {
   const newId = maxId + 1;
   const {
     name, phone, default_rent = 5000, water = 200, maintenance = 0, members = 1,
-    eb_rate = 6.0, proof_type = 'Aadhaar', proof_number, move_in_date, advance = 0,
+    eb_rate = 6.0, proof_type = 'Aadhaar', proof_number, move_in_date, advance = 0, advance_date,
   } = req.body;
 
   db.prepare(`
     INSERT INTO houses (
       id, name, phone, default_rent, water, maintenance, members, eb_rate,
-      proof_type, proof_number, move_in_date, move_out_date, status, advance
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'Active', ?)
+      proof_type, proof_number, move_in_date, move_out_date, status, advance, advance_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'Active', ?, ?)
   `).run(
     newId, name || `வீடு ${newId}`, phone || null, default_rent, water, maintenance,
-    members, eb_rate, proof_type, proof_number || null, move_in_date || null, advance
+    members, eb_rate, proof_type, proof_number || null, move_in_date || null, advance, advance_date || null
   );
 
   res.json(db.prepare('SELECT * FROM houses WHERE id = ?').get(newId));
@@ -94,9 +94,9 @@ function applyHouseUpdate(house, fields, note) {
   // is only a reasonable guess for the live "just changed the name" edit.
   if (nameChanged) {
     db.prepare(`
-      INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date, advance)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, house.move_out_date || today, house.advance);
+      INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date, advance, advance_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, house.move_out_date || today, house.advance, house.advance_date);
 
     // The new occupant starts with a clean slate -- don't let them silently
     // inherit the outgoing tenant's move_out_date just because this row
@@ -110,7 +110,7 @@ function applyHouseUpdate(house, fields, note) {
       maintenance = @maintenance, members = @members, eb_rate = @eb_rate,
       proof_type = @proof_type, proof_number = @proof_number,
       move_in_date = @move_in_date, move_out_date = @move_out_date, status = @status,
-      advance = @advance
+      advance = @advance, advance_date = @advance_date
     WHERE id = @id
   `).run(updated);
 
@@ -225,17 +225,17 @@ router.post('/:id/new-tenant', auth, (req, res) => {
   const run = db.transaction(() => {
     if (house.name) {
       db.prepare(`
-        INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date, advance)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, house.move_out_date || today, house.advance);
+        INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date, advance, advance_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, house.move_out_date || today, house.advance, house.advance_date);
     }
 
     // Deposit belongs to the tenancy that paid it -- a new tenant starts at
-    // 0, not whatever the outgoing tenant's advance happened to be.
+    // 0/unset, not whatever the outgoing tenant's advance happened to be.
     db.prepare(`
       UPDATE houses SET
         name = ?, phone = ?, members = ?, proof_type = ?, proof_number = ?,
-        move_in_date = ?, move_out_date = NULL, status = 'Active', advance = 0
+        move_in_date = ?, move_out_date = NULL, status = 'Active', advance = 0, advance_date = NULL
       WHERE id = ?
     `).run(name, phone || null, members || 1, proof_type || 'Aadhaar', proof_number || null, move_in_date || today, house.id);
   });
