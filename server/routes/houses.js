@@ -73,36 +73,67 @@ router.get('/:id', auth, (req, res) => {
 // the bulk-upload route so both get the same auto-history behavior. Must be
 // called from inside a db.transaction.
 function applyHouseUpdate(house, fields, note) {
+  const today = new Date().toISOString().slice(0, 10);
+  const incomingName = fields.name !== undefined ? String(fields.name).trim() : house.name;
+  const nameChanged = house.name && incomingName !== String(house.name).trim();
+
+  if (nameChanged) {
+    // This row names a different tenant than the one currently on the
+    // house. Before treating it as "a new tenant has moved in," check
+    // whether it's actually a replay of a stint already on record --
+    // re-uploading a reconstruction file (one row per tenancy, oldest
+    // first) processes every row again on each upload, including ones for
+    // tenants who were already archived last time.
+    const incomingMoveIn = fields.move_in_date ?? null;
+    const incomingMoveOut = fields.move_out_date ?? null;
+    const alreadyRecorded = db.prepare(`
+      SELECT id FROM tenant_history
+      WHERE house_id = ? AND name = ? AND move_in_date IS ? AND move_out_date IS ?
+    `).get(house.id, incomingName, incomingMoveIn, incomingMoveOut);
+
+    if (alreadyRecorded) {
+      // Nothing new here -- leave the live house exactly as it is, so a
+      // re-upload can't clobber the current occupant with a stale
+      // predecessor's data or spuriously re-archive the current occupant.
+      return db.prepare('SELECT * FROM houses WHERE id = ?').get(house.id);
+    }
+
+    // A genuine new occupant: archive the current tenant's own details.
+    // Prefer their own recorded move_out_date (this row displacing them
+    // is itself the move-out event when they have none) over today's
+    // date, which is only a reasonable guess for a live "just changed the
+    // name" edit.
+    db.prepare(`
+      INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date, advance, advance_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, house.move_out_date || today, house.advance, house.advance_date);
+  }
+
   const updated = { ...house };
   for (const field of HOUSE_FIELDS) {
     if (fields[field] !== undefined) updated[field] = fields[field];
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const nameChanged = house.name && String(updated.name).trim() !== String(house.name).trim();
+  if (nameChanged) {
+    // A new occupant starts with a clean slate -- a field this row doesn't
+    // mention shouldn't silently carry over from whoever lived there
+    // before (e.g. their phone number, or a stale move-in date from a row
+    // with missing data).
+    if (fields.phone === undefined) updated.phone = null;
+    if (fields.members === undefined) updated.members = 1;
+    if (fields.proof_type === undefined) updated.proof_type = 'Aadhaar';
+    if (fields.proof_number === undefined) updated.proof_number = null;
+    if (fields.move_in_date === undefined) updated.move_in_date = null;
+    if (fields.move_out_date === undefined) updated.move_out_date = null;
+    if (fields.advance === undefined) updated.advance = 0;
+    if (fields.advance_date === undefined) updated.advance_date = null;
+  }
+
   const rentChanged =
     Number(updated.default_rent) !== Number(house.default_rent) ||
     Number(updated.water) !== Number(house.water) ||
     Number(updated.maintenance) !== Number(house.maintenance) ||
     Number(updated.eb_rate) !== Number(house.eb_rate);
-
-  // A different name on the same house means a new occupant has moved in --
-  // archive the outgoing tenant's details before overwriting them, same as
-  // the explicit "new tenant" flow does. Prefer the outgoing tenant's own
-  // recorded move_out_date (set on an earlier row of the same bulk upload,
-  // reconstructing real tenant-turnover history) over today's date, which
-  // is only a reasonable guess for the live "just changed the name" edit.
-  if (nameChanged) {
-    db.prepare(`
-      INSERT INTO tenant_history (house_id, name, phone, members, proof_type, proof_number, move_in_date, move_out_date, advance, advance_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(house.id, house.name, house.phone, house.members, house.proof_type, house.proof_number, house.move_in_date, house.move_out_date || today, house.advance, house.advance_date);
-
-    // The new occupant starts with a clean slate -- don't let them silently
-    // inherit the outgoing tenant's move_out_date just because this row
-    // didn't mention one.
-    if (fields.move_out_date === undefined) updated.move_out_date = null;
-  }
 
   db.prepare(`
     UPDATE houses SET
@@ -143,16 +174,18 @@ function createHouseFromBulkRow(id, fields) {
   const {
     name, phone, default_rent = 5000, water = 200, maintenance = 0, members = 1,
     eb_rate = 6.0, proof_type = 'Aadhaar', proof_number, move_in_date, move_out_date, status = 'Active',
+    advance = 0, advance_date,
   } = fields;
 
   db.prepare(`
     INSERT INTO houses (
       id, name, phone, default_rent, water, maintenance, members, eb_rate,
-      proof_type, proof_number, move_in_date, move_out_date, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      proof_type, proof_number, move_in_date, move_out_date, status, advance, advance_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, name || `வீடு ${id}`, phone || null, default_rent, water, maintenance,
-    members, eb_rate, proof_type, proof_number || null, move_in_date || null, move_out_date || null, status
+    members, eb_rate, proof_type, proof_number || null, move_in_date || null, move_out_date || null, status,
+    advance, advance_date || null
   );
 
   return db.prepare('SELECT * FROM houses WHERE id = ?').get(id);
