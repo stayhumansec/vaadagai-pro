@@ -286,4 +286,17 @@ router.post('/:id/proof', auth, upload.single('proof'), (req, res) => {
   res.json({ proof_file_path: req.file.filename });
 });
 
+// proof_file_path is always a filename this route's own multer storage
+// generated (house_<id>_<timestamp>.<ext>) -- never taken from the client on
+// this path -- so joining it onto resolvedUploadPath is safe from traversal.
+router.get('/:id/proof', auth, (req, res) => {
+  const house = db.prepare('SELECT proof_file_path FROM houses WHERE id = ?').get(req.params.id);
+  if (!house || !house.proof_file_path) return res.status(404).json({ error: 'No proof file uploaded' });
+
+  const filePath = path.join(resolvedUploadPath, house.proof_file_path);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Proof file not found on disk' });
+
+  res.download(filePath, house.proof_file_path);
+});
+
 module.exports = router;
