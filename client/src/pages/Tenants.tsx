@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from '../components/Modal';
-import { addNewTenant, createHouse, deleteHouse, getHouses, getRecords, getRentHistory, getSettings, getTenantHistory, updateHouse, updateHousesBulk, uploadHouseProof } from '../api';
+import { addNewTenant, createHouse, deleteHouse, downloadHouseProof, getHouses, getRecords, getRentHistory, getSettings, getTenantHistory, updateHouse, updateHousesBulk, uploadHouseProof } from '../api';
 import type { House, HouseStatus, RentHistoryEntry, RentRecord, TenantHistoryEntry } from '../types';
 import { fmt, todayYM } from '../utils';
 import { useToast } from '../components/Toast';
@@ -81,6 +81,7 @@ interface HouseForm {
   move_out_date: string;
   proof_type: string;
   proof_number: string;
+  proof_file_path: string | null;
   advance: number;
   advance_date: string;
 }
@@ -100,6 +101,7 @@ function toForm(house: House): HouseForm {
     move_out_date: house.move_out_date ?? '',
     proof_type: house.proof_type,
     proof_number: house.proof_number ?? '',
+    proof_file_path: house.proof_file_path,
     advance: house.advance,
     advance_date: house.advance_date ?? '',
   };
@@ -125,6 +127,7 @@ export function Tenants() {
   const [uploading, setUploading] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [downloadingProof, setDownloadingProof] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -230,7 +233,18 @@ export function Tenants() {
         advance_date: editing.advance_date || null,
       });
       if (proofFile) {
-        await uploadHouseProof(editing.id, proofFile);
+        // The tenant details above have already saved successfully at this
+        // point -- a failure here (bad file type, too large) is specific to
+        // the proof upload and shouldn't be reported as the whole save
+        // having failed.
+        try {
+          await uploadHouseProof(editing.id, proofFile);
+        } catch {
+          showToast(t('tenants.proofUploadFailed'), 'err');
+          closeEdit();
+          load();
+          return;
+        }
       }
       showToast(t('tenants.saved'), 'ok');
       closeEdit();
@@ -239,6 +253,18 @@ export function Tenants() {
       showToast(t('common.saveFailed'), 'err');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownloadProof = async () => {
+    if (!editing?.proof_file_path) return;
+    setDownloadingProof(true);
+    try {
+      await downloadHouseProof(editing.id, editing.proof_file_path);
+    } catch {
+      showToast(t('tenants.proofDownloadFailed'), 'err');
+    } finally {
+      setDownloadingProof(false);
     }
   };
 
@@ -708,6 +734,19 @@ export function Tenants() {
                 className="mt-1 w-full text-xs"
               />
             </label>
+            {editing.proof_file_path && !proofFile && (
+              <div className="flex items-center justify-between rounded-lg bg-gray-4 px-3 py-2 text-xs">
+                <span className="truncate text-gray">{t('tenants.proofOnFile')}</span>
+                <button
+                  type="button"
+                  onClick={handleDownloadProof}
+                  disabled={downloadingProof}
+                  className="shrink-0 text-brand-blue hover:underline disabled:opacity-60"
+                >
+                  {downloadingProof ? t('common.downloading') : t('tenants.downloadProof')}
+                </button>
+              </div>
+            )}
 
             <div className="rounded-lg bg-brand-amber/15 px-3 py-2 text-xs text-brand-amber">
               {t('tenants.rentHistoryHint')}

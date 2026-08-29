@@ -67,6 +67,15 @@ export const uploadHouseProof = (id: number, file: File) => {
     })
     .then((r) => r.data);
 };
+export const downloadHouseProof = async (id: number, filename: string) => {
+  const res = await api.get(`/houses/${id}/proof`, { responseType: 'blob' });
+  const url = URL.createObjectURL(res.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 // Records
 export const getRecords = (params: { house_id?: number; month_from?: string; month_to?: string }) =>
